@@ -426,6 +426,9 @@ Follow the same pattern to create:
 
 ---
 
+CHECKPOİNT
+Commit deneme
+
 ## Week 3: Authentication with Cognito
 
 ### Day 1-2: Set Up Cognito User Pool
