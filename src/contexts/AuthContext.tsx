@@ -1,5 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect } from 'react';
+import {
+  signIn,
+  signUp,
+  signOut,
+  getCurrentUser,
+  confirmSignUp,
+  resendSignUpCode,
+} from 'aws-amplify/auth';
 import { User } from '@/types';
 
 /**
@@ -11,7 +19,9 @@ export interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
+  signup: (email: string, password: string, name: string) => Promise<{ needsConfirmation: boolean }>;
+  confirmSignup: (email: string, confirmationCode: string) => Promise<void>;
+  resendSignupCode: (email: string) => Promise<void>;
 }
 
 /**
@@ -87,7 +97,11 @@ interface AuthProviderProps {
  * ============================================================================
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
+  // Initialize user state from localStorage using function initializer (runs once on mount)
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -112,71 +126,77 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // };
     // checkAuth();
 
-    // MOCK: Check localStorage for development
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // MOCK: For development, user is already initialized from localStorage above
+    // Defer setIsLoading to avoid synchronous setState in effect
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
     try {
-      // TODO: Replace with Cognito Auth.signIn(email, password)
-      // Mock implementation for development
-      void password; // Will be used with Cognito
-      const mockUser: User = {
-        id: '1',
-        email,
-        name: 'John Doe',
-        role: 'user',
-        createdAt: new Date().toISOString(),
-      };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+      const { isSignedIn } = await signIn({ username: email, password });
+      if (isSignedIn) {
+        const user = await getCurrentUser();
+        setUser({
+          id: user.userId,
+          email: email,
+          name: user.username,
+          role: 'user',
+          createdAt: new Date().toISOString(),
+        });
+      }
     } catch (error) {
       console.error('Login error:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const logout = async () => {
-    setIsLoading(true);
     try {
-      // TODO: Replace with Cognito Auth.signOut()
+      await signOut();
       setUser(null);
-      localStorage.removeItem('user');
     } catch (error) {
       console.error('Logout error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const signup = async (email: string, password: string, name: string) => {
-    setIsLoading(true);
     try {
-      // TODO: Replace with Cognito Auth.signUp
-      // Mock implementation for development
-      void password; // Will be used with Cognito
-      const mockUser: User = {
-        id: '1',
-        email,
-        name,
-        role: 'user',
-        createdAt: new Date().toISOString(),
-      };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+      const result = await signUp({
+        username: email,
+        password,
+        options: {
+          userAttributes: {
+            email,
+            name,
+          },
+        },
+      });
+      const needsConfirmation = result.nextStep.signUpStep === 'CONFIRM_SIGN_UP';
+      return { needsConfirmation };
     } catch (error) {
       console.error('Signup error:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  const confirmSignup = async (email: string, confirmationCode: string) => {
+    try {
+      await confirmSignUp({ username: email, confirmationCode });
+    } catch (error) {
+      console.error('Confirm signup error:', error);
+      throw error;
+    }
+  };
+
+  const resendSignupCode = async (email: string) => {
+    try {
+      await resendSignUpCode({ username: email });
+    } catch (error) {
+      console.error('Resend signup code error:', error);
+      throw error;
     }
   };
 
@@ -187,6 +207,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     signup,
+    confirmSignup,
+    resendSignupCode,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

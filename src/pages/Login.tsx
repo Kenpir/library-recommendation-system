@@ -1,18 +1,26 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/common/Input';
 import { Button } from '@/components/common/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { validateEmail, validateRequired } from '@/utils/validation';
 import { handleApiError } from '@/utils/errorHandling';
 
+function isUserNotConfirmedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const maybe = error as { name?: unknown; __type?: unknown };
+  return maybe.name === 'UserNotConfirmedException' || maybe.__type === 'UserNotConfirmedException';
+}
+
 /**
  * Login page component
  */
 export function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const initialEmail = useMemo(() => (searchParams.get('email') || '').trim(), [searchParams]);
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +54,10 @@ export function Login() {
       await login(email, password);
       navigate('/');
     } catch (error) {
+      if (isUserNotConfirmedError(error)) {
+        navigate(`/confirm?email=${encodeURIComponent(email)}`);
+        return;
+      }
       handleApiError(error);
     } finally {
       setIsLoading(false);
@@ -57,7 +69,7 @@ export function Login() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <div className="inline-block mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30 mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30 mx-auto">
               <svg
                 className="w-8 h-8 text-white"
                 fill="none"

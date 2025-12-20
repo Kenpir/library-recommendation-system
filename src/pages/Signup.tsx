@@ -61,7 +61,11 @@ export function Signup() {
 
     setIsLoading(true);
     try {
-      await signup(email, password, name);
+      const { needsConfirmation } = await signup(email, password, name);
+      if (needsConfirmation) {
+        navigate(`/confirm?email=${encodeURIComponent(email)}`);
+        return;
+      }
       navigate('/');
     } catch (error) {
       handleApiError(error);
@@ -75,7 +79,7 @@ export function Signup() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <div className="inline-block mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30 mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-linear-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30 mx-auto">
               <svg
                 className="w-8 h-8 text-white"
                 fill="none"
