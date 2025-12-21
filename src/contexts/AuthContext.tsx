@@ -5,6 +5,7 @@ import {
   signUp,
   signOut,
   getCurrentUser,
+  fetchUserAttributes,
   confirmSignUp,
   resendSignUpCode,
 } from 'aws-amplify/auth';
@@ -100,6 +101,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const getDisplayName = async (fallbackUsername?: string): Promise<string> => {
+    try {
+      const attrs = await fetchUserAttributes();
+      const name = (attrs.name || '').trim();
+      if (name) return name;
+
+      // Optional if enabled in the user pool, but harmless to try.
+      const given = (attrs.given_name || '').trim();
+      const family = (attrs.family_name || '').trim();
+      const fullFromParts = [given, family].filter(Boolean).join(' ').trim();
+      return fullFromParts || (fallbackUsername || '').trim();
+    } catch {
+      return (fallbackUsername || '').trim();
+    }
+  };
+
   useEffect(() => {
     // Ensure we only trust the real Cognito session (not stale localStorage mocks).
     let cancelled = false;
@@ -108,10 +125,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const cognitoUser = await getCurrentUser();
         if (cancelled) return;
+        const displayName = await getDisplayName(cognitoUser.username);
         setUser({
           id: cognitoUser.userId,
           email: cognitoUser.signInDetails?.loginId || '',
-          name: cognitoUser.username,
+          name: displayName,
           role: 'user',
           createdAt: new Date().toISOString(),
         });
@@ -136,11 +154,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const { isSignedIn } = await signIn({ username: email, password });
       if (isSignedIn) {
-        const user = await getCurrentUser();
+        const cognitoUser = await getCurrentUser();
+        const displayName = await getDisplayName(cognitoUser.username);
         setUser({
-          id: user.userId,
+          id: cognitoUser.userId,
           email: email,
-          name: user.username,
+          name: displayName,
           role: 'user',
           createdAt: new Date().toISOString(),
         });
