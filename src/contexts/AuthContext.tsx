@@ -97,41 +97,39 @@ interface AuthProviderProps {
  * ============================================================================
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  // Initialize user state from localStorage using function initializer (runs once on mount)
-  const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Replace with Cognito session check in Week 3, Day 3-4
-    //
-    // Implementation:
-    // const checkAuth = async () => {
-    //   try {
-    //     const user = await getCurrentUser();
-    //     setUser({
-    //       id: user.userId,
-    //       email: user.signInDetails?.loginId || '',
-    //       name: user.username,
-    //       role: 'user',
-    //       createdAt: new Date().toISOString()
-    //     });
-    //   } catch {
-    //     setUser(null);
-    //   } finally {
-    //     setIsLoading(false);
-    //   }
-    // };
-    // checkAuth();
+    // Ensure we only trust the real Cognito session (not stale localStorage mocks).
+    let cancelled = false;
 
-    // MOCK: For development, user is already initialized from localStorage above
-    // Defer setIsLoading to avoid synchronous setState in effect
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 0);
-    return () => clearTimeout(timer);
+    const checkAuth = async () => {
+      try {
+        const cognitoUser = await getCurrentUser();
+        if (cancelled) return;
+        setUser({
+          id: cognitoUser.userId,
+          email: cognitoUser.signInDetails?.loginId || '',
+          name: cognitoUser.username,
+          role: 'user',
+          createdAt: new Date().toISOString(),
+        });
+        console.log('Cognito user:', JSON.stringify(cognitoUser, null, 2));
+      } catch {
+        if (cancelled) return;
+        setUser(null);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    checkAuth();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -157,6 +155,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await signOut();
       setUser(null);
+      // Back-compat: clear any leftover mock user so we don't "auto-login" on refresh.
+      localStorage.removeItem('user');
     } catch (error) {
       console.error('Logout error:', error);
     }

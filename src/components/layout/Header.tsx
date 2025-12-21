@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Navigation } from './Navigation';
+import { Button } from '@/components/common/Button';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { useAuth } from '@/hooks/useAuth';
 
 /**
  * Modern Header component with glass morphism effect
@@ -9,6 +12,21 @@ import { Navigation } from './Navigation';
  */
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate('/');
+    } finally {
+      setIsLoggingOut(false);
+      setIsMobileMenuOpen(false);
+    }
+  };
 
   return (
     <header className="glass-effect sticky top-0 z-50 border-b border-white/20 shadow-lg">
@@ -17,7 +35,7 @@ export function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="relative">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:shadow-xl group-hover:shadow-violet-500/40 transition-all duration-300 group-hover:scale-110">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:shadow-xl group-hover:shadow-violet-500/40 transition-all duration-300 group-hover:scale-110">
                 <svg
                   className="w-6 h-6 text-white"
                   fill="none"
@@ -43,18 +61,41 @@ export function Header() {
 
           {/* User Actions */}
           <div className="hidden md:flex items-center space-x-3">
-            <Link
-              to="/login"
-              className="text-slate-700 hover:text-violet-600 transition-colors font-semibold px-4 py-2 rounded-lg hover:bg-violet-50"
-            >
-              Login
-            </Link>
-            <Link
-              to="/signup"
-              className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-6 py-2.5 rounded-xl hover:from-violet-700 hover:to-indigo-700 transition-all shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 font-semibold transform hover:-translate-y-0.5"
-            >
-              Sign Up
-            </Link>
+            {isLoading ? (
+              <div className="px-4">
+                <LoadingSpinner size="sm" color="text-violet-600" />
+              </div>
+            ) : isAuthenticated ? (
+              <>
+                <span className="text-slate-700 font-semibold hidden lg:inline">
+                  {user?.name ? `Hi, ${user.name}` : user?.email ? user.email : 'Signed in'}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  {isLoggingOut ? 'Signing out...' : 'Logout'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="text-slate-700 hover:text-violet-600 transition-colors font-semibold px-4 py-2 rounded-lg hover:bg-violet-50"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/signup"
+                  className="bg-linear-to-r from-violet-600 to-indigo-600 text-white px-6 py-2.5 rounded-xl hover:from-violet-700 hover:to-indigo-700 transition-all shadow-lg shadow-violet-500/30 hover:shadow-xl hover:shadow-violet-500/40 font-semibold transform hover:-translate-y-0.5"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -87,18 +128,44 @@ export function Header() {
           <div className="md:hidden py-4 border-t border-white/20 animate-slide-in">
             <Navigation mobile />
             <div className="mt-4 space-y-2">
-              <Link
-                to="/login"
-                className="block text-slate-700 hover:text-violet-600 transition-colors py-2 px-4 rounded-lg hover:bg-violet-50 font-semibold"
-              >
-                Login
-              </Link>
-              <Link
-                to="/signup"
-                className="block bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl hover:from-violet-700 hover:to-indigo-700 transition-all text-center font-semibold shadow-lg shadow-violet-500/30"
-              >
-                Sign Up
-              </Link>
+              {isLoading ? (
+                <div className="py-2 px-4">
+                  <LoadingSpinner size="sm" color="text-violet-600" />
+                </div>
+              ) : isAuthenticated ? (
+                <>
+                  <div className="text-slate-700 font-semibold py-2 px-4">
+                    {user?.name ? `Hi, ${user.name}` : user?.email ? user.email : 'Signed in'}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="md"
+                    className="w-full"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                  >
+                    {isLoggingOut ? 'Signing out...' : 'Logout'}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="block text-slate-700 hover:text-violet-600 transition-colors py-2 px-4 rounded-lg hover:bg-violet-50 font-semibold"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="block bg-linear-to-r from-violet-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl hover:from-violet-700 hover:to-indigo-700 transition-all text-center font-semibold shadow-lg shadow-violet-500/30"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}
