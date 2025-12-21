@@ -1,5 +1,5 @@
 import { Book, ReadingList, Review, Recommendation } from '@/types';
-import { mockBooks, mockReadingLists } from './mockData';
+import { mockBooks } from './mockData';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -18,6 +18,10 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       'Content-Type': 'application/json',
     };
   }
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 /**
@@ -274,10 +278,39 @@ export async function getRecommendations(): Promise<Recommendation[]> {
  * Expected response: Array of ReadingList objects for the authenticated user
  */
 export async function getReadingLists(): Promise<ReadingList[]> {
-  // TODO: Remove this mock implementation after deploying Lambda
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(mockReadingLists), 500);
-  });
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/reading-lists`, { headers });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch reading lists');
+  }
+
+  const data = await response.json();
+
+  let itemsRaw: unknown = [];
+  if (Array.isArray(data)) {
+    itemsRaw = data;
+  } else if (isObject(data) && typeof data.body === 'string') {
+    itemsRaw = JSON.parse(data.body);
+  }
+
+  if (!Array.isArray(itemsRaw)) {
+    return [];
+  }
+
+  return itemsRaw
+    .map((item) => {
+      if (!isObject(item)) return null;
+      const bookIdsRaw = item.bookIds;
+      const bookIds = Array.isArray(bookIdsRaw)
+        ? bookIdsRaw.filter((id): id is string => typeof id === 'string')
+        : [];
+      return {
+        ...(item as unknown as ReadingList),
+        bookIds,
+      };
+    })
+    .filter((item): item is ReadingList => item !== null);
 }
 
 /**
@@ -305,7 +338,7 @@ export async function getReadingLists(): Promise<ReadingList[]> {
  * Expected response: Complete ReadingList object with generated id and timestamps
  */
 export async function createReadingList(
-  list: Omit<ReadingList, 'id' | 'createdAt' | 'updatedAt'>
+  list: Omit<ReadingList, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
 ): Promise<ReadingList> {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/reading-lists`, {
@@ -323,21 +356,39 @@ export async function createReadingList(
  */
 export async function updateReadingList(
   id: string,
-  list: Partial<ReadingList>
+  list: Partial<Pick<ReadingList, 'name' | 'description' | 'bookIds'>>
 ): Promise<ReadingList> {
-  // Mock implementation
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const existingList = mockReadingLists.find((l) => l.id === id);
-      const updatedList: ReadingList = {
-        ...existingList!,
-        ...list,
-        id,
-        updatedAt: new Date().toISOString(),
-      };
-      resolve(updatedList);
-    }, 500);
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/reading-lists/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({
+      ...(list.name !== undefined ? { name: list.name } : {}),
+      ...(list.description !== undefined ? { description: list.description } : {}),
+      ...(list.bookIds !== undefined ? { bookIds: list.bookIds } : {}),
+    }),
   });
+
+  if (!response.ok) {
+    throw new Error('Failed to update reading list');
+  }
+
+  const data = await response.json();
+
+  const itemRaw: unknown = isObject(data) && typeof data.body === 'string' ? JSON.parse(data.body) : data;
+  if (!isObject(itemRaw)) {
+    throw new Error('Invalid update reading list response');
+  }
+
+  const bookIdsRaw = itemRaw.bookIds;
+  const bookIds = Array.isArray(bookIdsRaw)
+    ? bookIdsRaw.filter((bookId): bookId is string => typeof bookId === 'string')
+    : [];
+
+  return {
+    ...(itemRaw as unknown as ReadingList),
+    bookIds,
+  };
 }
 
 /**
