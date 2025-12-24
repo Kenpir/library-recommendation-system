@@ -84,21 +84,35 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000
  * Expected response: Array of Book objects from DynamoDB
  */
 export async function getBooks(): Promise<Book[]> {
-  const response = await fetch(`${API_BASE_URL}/books`);
-  if (!response.ok) throw new Error('Failed to fetch books');
+  try {
+    const response = await fetch(`${API_BASE_URL}/books`);
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to fetch books: ${response.status} ${response.statusText}. ${errorText}`);
+    }
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (Array.isArray(data)) {
-    return data;
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    if (typeof data?.body === 'string') {
+      const parsed = JSON.parse(data.body);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+
+    return [];
+  } catch (error) {
+    // Handle network errors (Failed to fetch, CORS, etc.)
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(
+        `Network error: Unable to connect to API at ${API_BASE_URL}. Please check your API configuration and ensure the server is running.`
+      );
+    }
+    // Re-throw other errors as-is
+    throw error;
   }
-
-  if (typeof data?.body === 'string') {
-    const parsed = JSON.parse(data.body);
-    return Array.isArray(parsed) ? parsed : [];
-  }
-
-  return [];
 }
 
 /**
@@ -278,39 +292,51 @@ export async function getRecommendations(): Promise<Recommendation[]> {
  * Expected response: Array of ReadingList objects for the authenticated user
  */
 export async function getReadingLists(): Promise<ReadingList[]> {
-  const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/reading-lists`, { headers });
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/reading-lists`, { headers });
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch reading lists');
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to fetch reading lists: ${response.status} ${response.statusText}. ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    let itemsRaw: unknown = [];
+    if (Array.isArray(data)) {
+      itemsRaw = data;
+    } else if (isObject(data) && typeof data.body === 'string') {
+      itemsRaw = JSON.parse(data.body);
+    }
+
+    if (!Array.isArray(itemsRaw)) {
+      return [];
+    }
+
+    return itemsRaw
+      .map((item) => {
+        if (!isObject(item)) return null;
+        const bookIdsRaw = item.bookIds;
+        const bookIds = Array.isArray(bookIdsRaw)
+          ? bookIdsRaw.filter((id): id is string => typeof id === 'string')
+          : [];
+        return {
+          ...(item as unknown as ReadingList),
+          bookIds,
+        };
+      })
+      .filter((item): item is ReadingList => item !== null);
+  } catch (error) {
+    // Handle network errors (Failed to fetch, CORS, etc.)
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(
+        `Network error: Unable to connect to API at ${API_BASE_URL}. Please check your API configuration and ensure the server is running.`
+      );
+    }
+    // Re-throw other errors as-is
+    throw error;
   }
-
-  const data = await response.json();
-
-  let itemsRaw: unknown = [];
-  if (Array.isArray(data)) {
-    itemsRaw = data;
-  } else if (isObject(data) && typeof data.body === 'string') {
-    itemsRaw = JSON.parse(data.body);
-  }
-
-  if (!Array.isArray(itemsRaw)) {
-    return [];
-  }
-
-  return itemsRaw
-    .map((item) => {
-      if (!isObject(item)) return null;
-      const bookIdsRaw = item.bookIds;
-      const bookIds = Array.isArray(bookIdsRaw)
-        ? bookIdsRaw.filter((id): id is string => typeof id === 'string')
-        : [];
-      return {
-        ...(item as unknown as ReadingList),
-        bookIds,
-      };
-    })
-    .filter((item): item is ReadingList => item !== null);
 }
 
 /**
@@ -340,14 +366,28 @@ export async function getReadingLists(): Promise<ReadingList[]> {
 export async function createReadingList(
   list: Omit<ReadingList, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
 ): Promise<ReadingList> {
-  const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/reading-lists`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(list),
-  });
-  if (!response.ok) throw new Error('Failed to create reading list');
-  return response.json();
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/reading-lists`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(list),
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to create reading list: ${response.status} ${response.statusText}. ${errorText}`);
+    }
+    return response.json();
+  } catch (error) {
+    // Handle network errors (Failed to fetch, CORS, etc.)
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(
+        `Network error: Unable to connect to API at ${API_BASE_URL}. Please check your API configuration and ensure the server is running.`
+      );
+    }
+    // Re-throw other errors as-is
+    throw error;
+  }
 }
 
 /**
@@ -358,37 +398,49 @@ export async function updateReadingList(
   id: string,
   list: Partial<Pick<ReadingList, 'name' | 'description' | 'bookIds'>>
 ): Promise<ReadingList> {
-  const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/reading-lists/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({
-      ...(list.name !== undefined ? { name: list.name } : {}),
-      ...(list.description !== undefined ? { description: list.description } : {}),
-      ...(list.bookIds !== undefined ? { bookIds: list.bookIds } : {}),
-    }),
-  });
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/reading-lists/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        ...(list.name !== undefined ? { name: list.name } : {}),
+        ...(list.description !== undefined ? { description: list.description } : {}),
+        ...(list.bookIds !== undefined ? { bookIds: list.bookIds } : {}),
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to update reading list');
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to update reading list: ${response.status} ${response.statusText}. ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    const itemRaw: unknown = isObject(data) && typeof data.body === 'string' ? JSON.parse(data.body) : data;
+    if (!isObject(itemRaw)) {
+      throw new Error('Invalid update reading list response');
+    }
+
+    const bookIdsRaw = itemRaw.bookIds;
+    const bookIds = Array.isArray(bookIdsRaw)
+      ? bookIdsRaw.filter((bookId): bookId is string => typeof bookId === 'string')
+      : [];
+
+    return {
+      ...(itemRaw as unknown as ReadingList),
+      bookIds,
+    };
+  } catch (error) {
+    // Handle network errors (Failed to fetch, CORS, etc.)
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(
+        `Network error: Unable to connect to API at ${API_BASE_URL}. Please check your API configuration and ensure the server is running.`
+      );
+    }
+    // Re-throw other errors as-is
+    throw error;
   }
-
-  const data = await response.json();
-
-  const itemRaw: unknown = isObject(data) && typeof data.body === 'string' ? JSON.parse(data.body) : data;
-  if (!isObject(itemRaw)) {
-    throw new Error('Invalid update reading list response');
-  }
-
-  const bookIdsRaw = itemRaw.bookIds;
-  const bookIds = Array.isArray(bookIdsRaw)
-    ? bookIdsRaw.filter((bookId): bookId is string => typeof bookId === 'string')
-    : [];
-
-  return {
-    ...(itemRaw as unknown as ReadingList),
-    bookIds,
-  };
 }
 
 /**
