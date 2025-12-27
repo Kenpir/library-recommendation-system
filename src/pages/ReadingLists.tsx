@@ -17,6 +17,7 @@ export function ReadingLists() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListDescription, setNewListDescription] = useState('');
+  const [newListBookIds, setNewListBookIds] = useState<string[]>([]);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editListId, setEditListId] = useState<string | null>(null);
@@ -57,15 +58,17 @@ export function ReadingLists() {
     }
 
     try {
+      const uniqueBookIds = Array.from(new Set(newListBookIds));
       const newList = await createReadingList({
         name: newListName,
         description: newListDescription,
-        bookIds: [],
+        bookIds: uniqueBookIds,
       });
       setLists([...lists, newList]);
       setIsModalOpen(false);
       setNewListName('');
       setNewListDescription('');
+      setNewListBookIds([]);
       showSuccess('Reading list created successfully!');
     } catch (error) {
       handleApiError(error);
@@ -116,6 +119,22 @@ export function ReadingLists() {
     } finally {
       setIsBooksLoading(false);
     }
+  };
+
+  const openCreateListModal = async () => {
+    setIsModalOpen(true);
+    setNewListBookIds([]);
+
+    if (books.length === 0 && !isBooksLoading) {
+      await loadBooks();
+    }
+  };
+
+  const closeCreateListModal = () => {
+    setIsModalOpen(false);
+    setNewListName('');
+    setNewListDescription('');
+    setNewListBookIds([]);
   };
 
   const openAddBookModal = async (listId: string) => {
@@ -180,7 +199,7 @@ export function ReadingLists() {
             <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">My Reading Lists</h1>
             <p className="text-slate-600 text-lg">Organize your books into custom lists</p>
           </div>
-          <Button variant="primary" size="lg" onClick={() => setIsModalOpen(true)}>
+          <Button variant="primary" size="lg" onClick={openCreateListModal}>
             Create New List
           </Button>
         </div>
@@ -204,7 +223,7 @@ export function ReadingLists() {
             <p className="text-slate-600 mb-4">
               Create your first list to start organizing your books
             </p>
-            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+            <Button variant="primary" onClick={openCreateListModal}>
               Create Your First List
             </Button>
           </div>
@@ -236,7 +255,7 @@ export function ReadingLists() {
 
         <Modal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={closeCreateListModal}
           title="Create New Reading List"
         >
           <div>
@@ -259,11 +278,44 @@ export function ReadingLists() {
               />
             </div>
 
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Books (optional)</label>
+              <select
+                multiple
+                value={newListBookIds}
+                onChange={(e) => {
+                  const values = Array.from(e.target.selectedOptions).map((o) => o.value);
+                  setNewListBookIds(values);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[220px]"
+                disabled={isBooksLoading}
+              >
+                {books.length === 0 ? (
+                  <option value="" disabled>
+                    {isBooksLoading ? 'Loading books…' : 'No books available'}
+                  </option>
+                ) : (
+                  books.map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.title} — {book.author}
+                    </option>
+                  ))
+                )}
+              </select>
+              <p className="mt-2 text-sm text-slate-600">
+                Selected: <span className="font-medium">{newListBookIds.length}</span>
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Tip: Hold <span className="font-medium">⌘</span> (Mac) or <span className="font-medium">Ctrl</span>{' '}
+                (Windows) to select multiple books.
+              </p>
+            </div>
+
             <div className="flex gap-3">
               <Button variant="primary" onClick={handleCreateList} className="flex-1">
                 Create List
               </Button>
-              <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
+              <Button variant="secondary" onClick={closeCreateListModal} className="flex-1">
                 Cancel
               </Button>
             </div>
