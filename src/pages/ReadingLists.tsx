@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/common/Button';
-import { Modal } from '@/components/common/Modal';
 import { Input } from '@/components/common/Input';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import {
@@ -21,12 +20,10 @@ import { SearchableMultiSelect } from '@/components/common/SearchableMultiSelect
 export function ReadingLists() {
   const [lists, setLists] = useState<ReadingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListDescription, setNewListDescription] = useState('');
   const [newListBookIds, setNewListBookIds] = useState<string[]>([]);
 
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editListId, setEditListId] = useState<string | null>(null);
   const [editListName, setEditListName] = useState('');
   const [editListDescription, setEditListDescription] = useState('');
@@ -36,8 +33,14 @@ export function ReadingLists() {
   const [isBooksLoading, setIsBooksLoading] = useState(false);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     loadLists();
   }, []);
+
+  useEffect(() => {
+    // Re-init Preline components when lists change or on mount
+    window.HSStaticMethods?.autoInit();
+  }, [lists]);
 
   const loadLists = async () => {
     setIsLoading(true);
@@ -65,7 +68,7 @@ export function ReadingLists() {
         bookIds: uniqueBookIds,
       });
       setLists([...lists, newList]);
-      setIsModalOpen(false);
+      closeCreateListModal();
       setNewListName('');
       setNewListDescription('');
       setNewListBookIds([]);
@@ -80,7 +83,7 @@ export function ReadingLists() {
     setEditListName(list.name);
     setEditListDescription(list.description ?? '');
     setEditListBookIds(list.bookIds || []);
-    setIsEditModalOpen(true);
+    // Offcanvas is opened via data attributes on the button
 
     if (books.length === 0 && !isBooksLoading) {
       await loadBooks();
@@ -88,11 +91,8 @@ export function ReadingLists() {
   };
 
   const closeEditModal = () => {
-    setIsEditModalOpen(false);
-    setEditListId(null);
-    setEditListName('');
-    setEditListDescription('');
-    setEditListBookIds([]);
+    // Close offcanvas programmatically
+    window.HSOverlay?.close('#edit-reading-list-offcanvas');
   };
 
   const handleUpdateList = async () => {
@@ -144,7 +144,8 @@ export function ReadingLists() {
   };
 
   const openCreateListModal = async () => {
-    setIsModalOpen(true);
+    setNewListName('');
+    setNewListDescription('');
     setNewListBookIds([]);
 
     if (books.length === 0 && !isBooksLoading) {
@@ -153,10 +154,7 @@ export function ReadingLists() {
   };
 
   const closeCreateListModal = () => {
-    setIsModalOpen(false);
-    setNewListName('');
-    setNewListDescription('');
-    setNewListBookIds([]);
+    window.HSOverlay?.close('#create-reading-list-offcanvas');
   };
 
   if (isLoading) {
@@ -175,7 +173,12 @@ export function ReadingLists() {
             <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">My Reading Lists</h1>
             <p className="text-slate-600 text-lg">Organize your books into custom lists</p>
           </div>
-          <Button variant="primary" size="lg" onClick={openCreateListModal}>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={openCreateListModal}
+            data-hs-overlay="#create-reading-list-offcanvas"
+          >
             Create New List
           </Button>
         </div>
@@ -199,7 +202,11 @@ export function ReadingLists() {
             <p className="text-slate-600 mb-4">
               Create your first list to start organizing your books
             </p>
-            <Button variant="primary" onClick={openCreateListModal}>
+            <Button
+              variant="primary"
+              onClick={openCreateListModal}
+              data-hs-overlay="#create-reading-list-offcanvas"
+            >
               Create Your First List
             </Button>
           </div>
@@ -221,6 +228,7 @@ export function ReadingLists() {
                     variant="secondary"
                     onClick={() => openEditModal(list)}
                     className="flex-1"
+                    data-hs-overlay="#edit-reading-list-offcanvas"
                   >
                     Edit
                   </Button>
@@ -237,8 +245,43 @@ export function ReadingLists() {
           </div>
         )}
 
-        <Modal isOpen={isModalOpen} onClose={closeCreateListModal} title="Create New Reading List">
-          <div>
+        {/* Create Offcanvas */}
+        <div
+          id="create-reading-list-offcanvas"
+          className="hs-overlay hidden fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200"
+          style={{ backgroundColor: 'white', zIndex: 80 }}
+          tabIndex={-1}
+          data-hs-overlay-options='{
+            "bodyScroll": true,
+            "backdrop": true
+          }'
+        >
+          <div className="flex justify-between items-center py-3 px-4 border-b border-gray-200">
+            <h3 className="font-bold text-gray-800">Create New Reading List</h3>
+            <button
+              type="button"
+              className="flex justify-center items-center size-7 text-sm font-semibold rounded-full border border-transparent text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none"
+              onClick={closeCreateListModal}
+            >
+              <span className="sr-only">Close modal</span>
+              <svg
+                className="shrink-0 size-4"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 18 18"></path>
+              </svg>
+            </button>
+          </div>
+          <div className="p-4 space-y-4">
             <Input
               label="List Name"
               type="text"
@@ -248,7 +291,7 @@ export function ReadingLists() {
               required
             />
 
-            <div className="mb-4">
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <textarea
                 value={newListDescription}
@@ -258,7 +301,7 @@ export function ReadingLists() {
               />
             </div>
 
-            <div className="mb-4">
+            <div>
               <SearchableMultiSelect
                 label="Books (optional)"
                 options={books.map((b) => ({
@@ -282,7 +325,7 @@ export function ReadingLists() {
               ) : null}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-4">
               <Button variant="primary" onClick={handleCreateList} className="flex-1">
                 Create List
               </Button>
@@ -291,10 +334,45 @@ export function ReadingLists() {
               </Button>
             </div>
           </div>
-        </Modal>
+        </div>
 
-        <Modal isOpen={isEditModalOpen} onClose={closeEditModal} title="Edit Reading List">
-          <div>
+        {/* Edit Offcanvas */}
+        <div
+          id="edit-reading-list-offcanvas"
+          className="hs-overlay hidden fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200"
+          style={{ backgroundColor: 'white', zIndex: 80 }}
+          tabIndex={-1}
+          data-hs-overlay-options='{
+            "bodyScroll": true,
+            "backdrop": true
+          }'
+        >
+          <div className="flex justify-between items-center py-3 px-4 border-b border-gray-200">
+            <h3 className="font-bold text-gray-800">Edit Reading List</h3>
+            <button
+              type="button"
+              className="flex justify-center items-center size-7 text-sm font-semibold rounded-full border border-transparent text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none"
+              onClick={closeEditModal}
+            >
+              <span className="sr-only">Close modal</span>
+              <svg
+                className="shrink-0 size-4"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 18 18"></path>
+              </svg>
+            </button>
+          </div>
+          <div className="p-4 space-y-4">
             <Input
               label="List Name"
               type="text"
@@ -304,7 +382,7 @@ export function ReadingLists() {
               required
             />
 
-            <div className="mb-4">
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <textarea
                 value={editListDescription}
@@ -314,7 +392,7 @@ export function ReadingLists() {
               />
             </div>
 
-            <div className="mb-4">
+            <div>
               <SearchableMultiSelect
                 label="Books"
                 options={books.map((b) => ({
@@ -338,7 +416,7 @@ export function ReadingLists() {
               ) : null}
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-4">
               <Button
                 variant="primary"
                 onClick={handleUpdateList}
@@ -352,7 +430,7 @@ export function ReadingLists() {
               </Button>
             </div>
           </div>
-        </Modal>
+        </div>
       </div>
     </div>
   );

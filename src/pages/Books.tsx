@@ -47,6 +47,10 @@ export function Books() {
     }
   };
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
+
   const handleSearch = (query: string) => {
     if (!query.trim()) {
       setFilteredBooks(books);

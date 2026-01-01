@@ -5,7 +5,9 @@ declare global {
     HSStaticMethods?: {
       autoInit: () => void;
     };
+    HSOverlay?: {
+      open: (selector: string) => void;
+      close: (selector: string) => void;
+    };
   }
 }
-
-
