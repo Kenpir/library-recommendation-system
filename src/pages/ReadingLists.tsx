@@ -1,9 +1,15 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import { Input } from '@/components/common/Input';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { createReadingList, getBooks, getReadingLists, updateReadingList } from '@/services/api';
+import {
+  createReadingList,
+  deleteReadingList,
+  getBooks,
+  getReadingLists,
+  updateReadingList,
+} from '@/services/api';
 import type { Book, ReadingList } from '@/types';
 import { formatDate } from '@/utils/formatters';
 import { handleApiError, showSuccess } from '@/utils/errorHandling';
@@ -23,21 +29,14 @@ export function ReadingLists() {
   const [editListId, setEditListId] = useState<string | null>(null);
   const [editListName, setEditListName] = useState('');
   const [editListDescription, setEditListDescription] = useState('');
+  const [editListBookIds, setEditListBookIds] = useState<string[]>([]);
 
-  const [isAddBookModalOpen, setIsAddBookModalOpen] = useState(false);
   const [books, setBooks] = useState<Book[]>([]);
   const [isBooksLoading, setIsBooksLoading] = useState(false);
-  const [targetListId, setTargetListId] = useState<string | null>(null);
-  const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
 
   useEffect(() => {
     loadLists();
   }, []);
-
-  const targetList = useMemo(
-    () => lists.find((l) => l.id === targetListId) ?? null,
-    [lists, targetListId]
-  );
 
   const loadLists = async () => {
     setIsLoading(true);
@@ -75,11 +74,16 @@ export function ReadingLists() {
     }
   };
 
-  const openEditModal = (list: ReadingList) => {
+  const openEditModal = async (list: ReadingList) => {
     setEditListId(list.id);
     setEditListName(list.name);
     setEditListDescription(list.description ?? '');
+    setEditListBookIds(list.bookIds || []);
     setIsEditModalOpen(true);
+
+    if (books.length === 0 && !isBooksLoading) {
+      await loadBooks();
+    }
   };
 
   const closeEditModal = () => {
@@ -87,6 +91,7 @@ export function ReadingLists() {
     setEditListId(null);
     setEditListName('');
     setEditListDescription('');
+    setEditListBookIds([]);
   };
 
   const handleUpdateList = async () => {
@@ -97,13 +102,29 @@ export function ReadingLists() {
     }
 
     try {
+      const uniqueBookIds = Array.from(new Set(editListBookIds));
       const updated = await updateReadingList(editListId, {
         name: editListName.trim(),
         description: editListDescription,
+        bookIds: uniqueBookIds,
       });
       setLists((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
       showSuccess('Reading list updated successfully!');
       closeEditModal();
+    } catch (error) {
+      handleApiError(error);
+    }
+  };
+
+  const handleDeleteList = async (listId: string) => {
+    if (!window.confirm('Are you sure you want to delete this reading list?')) {
+      return;
+    }
+
+    try {
+      await deleteReadingList(listId);
+      setLists((prev) => prev.filter((l) => l.id !== listId));
+      showSuccess('Reading list deleted successfully!');
     } catch (error) {
       handleApiError(error);
     }
@@ -135,52 +156,6 @@ export function ReadingLists() {
     setNewListName('');
     setNewListDescription('');
     setNewListBookIds([]);
-  };
-
-  const openAddBookModal = async (listId: string) => {
-    setTargetListId(listId);
-    setSelectedBookIds([]);
-    setIsAddBookModalOpen(true);
-
-    if (books.length === 0 && !isBooksLoading) {
-      await loadBooks();
-    }
-  };
-
-  const closeAddBookModal = () => {
-    setIsAddBookModalOpen(false);
-    setTargetListId(null);
-    setSelectedBookIds([]);
-  };
-
-  const handleAddBookToList = async () => {
-    if (!targetList) {
-      alert('Please choose a reading list');
-      return;
-    }
-    if (selectedBookIds.length === 0) {
-      alert('Please choose at least one book');
-      return;
-    }
-
-    const existingIds = Array.isArray(targetList.bookIds) ? targetList.bookIds : [];
-    const newIds = selectedBookIds.filter((id) => !existingIds.includes(id));
-    if (newIds.length === 0) {
-      alert('All selected books are already in this list');
-      return;
-    }
-
-    try {
-      const updated = await updateReadingList(targetList.id, {
-        bookIds: [...existingIds, ...newIds],
-      });
-
-      setLists((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-      showSuccess('Book added to reading list!');
-      closeAddBookModal();
-    } catch (error) {
-      handleApiError(error);
-    }
   };
 
   if (isLoading) {
@@ -241,11 +216,19 @@ export function ReadingLists() {
                   <span>Created {formatDate(list.createdAt)}</span>
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="secondary" onClick={() => openAddBookModal(list.id)} className="flex-1">
-                    Add Book
-                  </Button>
-                  <Button variant="secondary" onClick={() => openEditModal(list)} className="flex-1">
+                  <Button
+                    variant="secondary"
+                    onClick={() => openEditModal(list)}
+                    className="flex-1"
+                  >
                     Edit
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleDeleteList(list.id)}
+                    className="flex-1 bg-red-50! text-red-600! hover:bg-red-100! hover:border-red-200!"
+                  >
+                    Delete
                   </Button>
                 </div>
               </div>
@@ -253,11 +236,7 @@ export function ReadingLists() {
           </div>
         )}
 
-        <Modal
-          isOpen={isModalOpen}
-          onClose={closeCreateListModal}
-          title="Create New Reading List"
-        >
+        <Modal isOpen={isModalOpen} onClose={closeCreateListModal} title="Create New Reading List">
           <div>
             <Input
               label="List Name"
@@ -279,7 +258,9 @@ export function ReadingLists() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Books (optional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Books (optional)
+              </label>
               <select
                 multiple
                 value={newListBookIds}
@@ -306,8 +287,8 @@ export function ReadingLists() {
                 Selected: <span className="font-medium">{newListBookIds.length}</span>
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                Tip: Hold <span className="font-medium">⌘</span> (Mac) or <span className="font-medium">Ctrl</span>{' '}
-                (Windows) to select multiple books.
+                Tip: Hold <span className="font-medium">⌘</span> (Mac) or{' '}
+                <span className="font-medium">Ctrl</span> (Windows) to select multiple books.
               </p>
             </div>
 
@@ -343,31 +324,14 @@ export function ReadingLists() {
               />
             </div>
 
-            <div className="flex gap-3">
-              <Button variant="primary" onClick={handleUpdateList} className="flex-1" disabled={!editListId}>
-                Save Changes
-              </Button>
-              <Button variant="secondary" onClick={closeEditModal} className="flex-1">
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </Modal>
-
-        <Modal
-          isOpen={isAddBookModalOpen}
-          onClose={closeAddBookModal}
-          title={targetList ? `Add Book to "${targetList.name}"` : 'Add Book to Reading List'}
-        >
-          <div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Book</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Books</label>
               <select
                 multiple
-                value={selectedBookIds}
+                value={editListBookIds}
                 onChange={(e) => {
                   const values = Array.from(e.target.selectedOptions).map((o) => o.value);
-                  setSelectedBookIds(values);
+                  setEditListBookIds(values);
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[220px]"
                 disabled={isBooksLoading}
@@ -377,46 +341,32 @@ export function ReadingLists() {
                     {isBooksLoading ? 'Loading books…' : 'No books available'}
                   </option>
                 ) : (
-                  books.map((book) => {
-                    const isAlreadyInList = (targetList?.bookIds ?? []).includes(book.id);
-                    return (
-                      <option key={book.id} value={book.id} disabled={isAlreadyInList}>
-                        {book.title} — {book.author}
-                        {isAlreadyInList ? ' (already in list)' : ''}
-                      </option>
-                    );
-                  })
+                  books.map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.title} — {book.author}
+                    </option>
+                  ))
                 )}
               </select>
-              <p className="mt-2 text-sm text-slate-500">
-                Tip: Hold <span className="font-medium">⌘</span> (Mac) or <span className="font-medium">Ctrl</span>{' '}
-                (Windows) to select multiple books.
+              <p className="mt-2 text-sm text-slate-600">
+                Selected: <span className="font-medium">{editListBookIds.length}</span>
               </p>
-              {targetList ? (
-                <p className="mt-2 text-sm text-slate-600">
-                  Selected: <span className="font-medium">{selectedBookIds.length}</span> (new:{' '}
-                  <span className="font-medium">
-                    {selectedBookIds.filter((id) => !(targetList?.bookIds ?? []).includes(id)).length}
-                  </span>
-                  )
-                </p>
-              ) : null}
+              <p className="mt-1 text-sm text-slate-500">
+                Tip: Hold <span className="font-medium">⌘</span> (Mac) or{' '}
+                <span className="font-medium">Ctrl</span> (Windows) to select multiple books.
+              </p>
             </div>
 
             <div className="flex gap-3">
               <Button
                 variant="primary"
-                onClick={handleAddBookToList}
+                onClick={handleUpdateList}
                 className="flex-1"
-                disabled={
-                  !targetList ||
-                  selectedBookIds.length === 0 ||
-                  selectedBookIds.every((id) => (targetList?.bookIds ?? []).includes(id))
-                }
+                disabled={!editListId}
               >
-                Add Books
+                Save Changes
               </Button>
-              <Button variant="secondary" onClick={closeAddBookModal} className="flex-1">
+              <Button variant="secondary" onClick={closeEditModal} className="flex-1">
                 Cancel
               </Button>
             </div>

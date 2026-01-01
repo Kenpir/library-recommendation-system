@@ -88,7 +88,9 @@ export async function getBooks(): Promise<Book[]> {
     const response = await fetch(`${API_BASE_URL}/books`);
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Failed to fetch books: ${response.status} ${response.statusText}. ${errorText}`);
+      throw new Error(
+        `Failed to fetch books: ${response.status} ${response.statusText}. ${errorText}`
+      );
     }
 
     const data = await response.json();
@@ -298,7 +300,9 @@ export async function getReadingLists(): Promise<ReadingList[]> {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Failed to fetch reading lists: ${response.status} ${response.statusText}. ${errorText}`);
+      throw new Error(
+        `Failed to fetch reading lists: ${response.status} ${response.statusText}. ${errorText}`
+      );
     }
 
     const data = await response.json();
@@ -375,7 +379,9 @@ export async function createReadingList(
     });
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Failed to create reading list: ${response.status} ${response.statusText}. ${errorText}`);
+      throw new Error(
+        `Failed to create reading list: ${response.status} ${response.statusText}. ${errorText}`
+      );
     }
     return response.json();
   } catch (error) {
@@ -412,12 +418,15 @@ export async function updateReadingList(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Failed to update reading list: ${response.status} ${response.statusText}. ${errorText}`);
+      throw new Error(
+        `Failed to update reading list: ${response.status} ${response.statusText}. ${errorText}`
+      );
     }
 
     const data = await response.json();
 
-    const itemRaw: unknown = isObject(data) && typeof data.body === 'string' ? JSON.parse(data.body) : data;
+    const itemRaw: unknown =
+      isObject(data) && typeof data.body === 'string' ? JSON.parse(data.body) : data;
     if (!isObject(itemRaw)) {
       throw new Error('Invalid update reading list response');
     }
@@ -432,10 +441,11 @@ export async function updateReadingList(
       bookIds,
     };
   } catch (error) {
+    console.error('Update Reading List Error:', error);
     // Handle network errors (Failed to fetch, CORS, etc.)
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new Error(
-        `Network error: Unable to connect to API at ${API_BASE_URL}. Please check your API configuration and ensure the server is running.`
+        `Network error: Unable to connect to API at ${API_BASE_URL}. Original error: ${error.message}`
       );
     }
     // Re-throw other errors as-is
@@ -447,11 +457,29 @@ export async function updateReadingList(
  * Delete a reading list
  * TODO: Replace with DELETE /reading-lists/:id API call
  */
-export async function deleteReadingList(): Promise<void> {
-  // Mock implementation
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(), 300);
-  });
+export async function deleteReadingList(id: string): Promise<void> {
+  try {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/reading-lists/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(
+        `Failed to delete reading list: ${response.status} ${response.statusText}. ${errorText}`
+      );
+    }
+  } catch (error) {
+    console.error('Delete Reading List Error:', error);
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(
+        `Network error: Unable to connect to API at ${API_BASE_URL}. Original error: ${error.message}`
+      );
+    }
+    throw error;
+  }
 }
 
 /**
