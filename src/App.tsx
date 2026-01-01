@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
@@ -17,10 +18,22 @@ import { NotFound } from './pages/NotFound';
 /**
  * Main App component with routing and layout
  */
+function PrelineAutoInit() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Preline requires re-init after SPA route changes to bind dropdowns, etc.
+    window.HSStaticMethods?.autoInit();
+  }, [location.pathname]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <PrelineAutoInit />
         <div className="flex flex-col min-h-screen">
           <Header />
           <main className="flex-1">

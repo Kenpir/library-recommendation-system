@@ -13,6 +13,7 @@ import {
 import type { Book, ReadingList } from '@/types';
 import { formatDate } from '@/utils/formatters';
 import { handleApiError, showSuccess } from '@/utils/errorHandling';
+import { SearchableMultiSelect } from '@/components/common/SearchableMultiSelect';
 
 /**
  * ReadingLists page component
@@ -258,38 +259,27 @@ export function ReadingLists() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Books (optional)
-              </label>
-              <select
-                multiple
-                value={newListBookIds}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions).map((o) => o.value);
-                  setNewListBookIds(values);
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[220px]"
-                disabled={isBooksLoading}
-              >
-                {books.length === 0 ? (
-                  <option value="" disabled>
-                    {isBooksLoading ? 'Loading books…' : 'No books available'}
-                  </option>
-                ) : (
-                  books.map((book) => (
-                    <option key={book.id} value={book.id}>
-                      {book.title} — {book.author}
-                    </option>
-                  ))
-                )}
-              </select>
+              <SearchableMultiSelect
+                label="Books (optional)"
+                options={books.map((b) => ({
+                  value: b.id,
+                  label: b.title,
+                  description: b.author,
+                }))}
+                selectedValues={newListBookIds}
+                onChange={setNewListBookIds}
+                pageSize={10}
+                placeholder={isBooksLoading ? 'Loading books…' : 'Search books…'}
+                disabled={isBooksLoading || books.length === 0}
+              />
               <p className="mt-2 text-sm text-slate-600">
                 Selected: <span className="font-medium">{newListBookIds.length}</span>
               </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Tip: Hold <span className="font-medium">⌘</span> (Mac) or{' '}
-                <span className="font-medium">Ctrl</span> (Windows) to select multiple books.
-              </p>
+              {books.length === 0 ? (
+                <p className="mt-1 text-sm text-slate-500">
+                  {isBooksLoading ? 'Loading books…' : 'No books available'}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex gap-3">
@@ -325,36 +315,27 @@ export function ReadingLists() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Books</label>
-              <select
-                multiple
-                value={editListBookIds}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions).map((o) => o.value);
-                  setEditListBookIds(values);
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[220px]"
-                disabled={isBooksLoading}
-              >
-                {books.length === 0 ? (
-                  <option value="" disabled>
-                    {isBooksLoading ? 'Loading books…' : 'No books available'}
-                  </option>
-                ) : (
-                  books.map((book) => (
-                    <option key={book.id} value={book.id}>
-                      {book.title} — {book.author}
-                    </option>
-                  ))
-                )}
-              </select>
+              <SearchableMultiSelect
+                label="Books"
+                options={books.map((b) => ({
+                  value: b.id,
+                  label: b.title,
+                  description: b.author,
+                }))}
+                selectedValues={editListBookIds}
+                onChange={setEditListBookIds}
+                pageSize={10}
+                placeholder={isBooksLoading ? 'Loading books…' : 'Search books…'}
+                disabled={isBooksLoading || books.length === 0}
+              />
               <p className="mt-2 text-sm text-slate-600">
                 Selected: <span className="font-medium">{editListBookIds.length}</span>
               </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Tip: Hold <span className="font-medium">⌘</span> (Mac) or{' '}
-                <span className="font-medium">Ctrl</span> (Windows) to select multiple books.
-              </p>
+              {books.length === 0 ? (
+                <p className="mt-1 text-sm text-slate-500">
+                  {isBooksLoading ? 'Loading books…' : 'No books available'}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex gap-3">
