@@ -5,6 +5,7 @@ import { NavLink } from 'react-router-dom';
  */
 interface NavigationProps {
   mobile?: boolean;
+  showAdmin?: boolean;
 }
 
 /**
@@ -13,13 +14,13 @@ interface NavigationProps {
  * Displays navigation links for all main routes
  * Responsive: horizontal on desktop, vertical on mobile
  */
-export function Navigation({ mobile = false }: NavigationProps) {
+export function Navigation({ mobile = false, showAdmin = false }: NavigationProps) {
   const links = [
     { to: '/', label: 'Home' },
     { to: '/books', label: 'Books' },
     { to: '/recommendations', label: 'Recommendations' },
     { to: '/reading-lists', label: 'Reading Lists' },
-    { to: '/admin', label: 'Admin' },
+    ...(showAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
   ];
 
   const baseClasses = 'transition-all duration-300 font-semibold';

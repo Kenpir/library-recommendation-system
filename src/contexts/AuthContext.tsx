@@ -6,6 +6,7 @@ import {
   signOut,
   getCurrentUser,
   fetchUserAttributes,
+  fetchAuthSession,
   confirmSignUp,
   resendSignUpCode,
 } from 'aws-amplify/auth';
@@ -101,19 +102,71 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getDisplayName = async (fallbackUsername?: string): Promise<string> => {
+  const getAdminEmailAllowlist = (): Set<string> => {
+    const raw = (import.meta.env.VITE_ADMIN_EMAILS || '').trim();
+    if (!raw) return new Set();
+    return new Set(
+      raw
+        .split(',')
+        .map((e: string) => e.trim().toLowerCase())
+        .filter(Boolean)
+    );
+  };
+
+  const getRole = async (email?: string): Promise<User['role']> => {
+    // 1) Prefer Cognito group claims (recommended for real deployments)
+    try {
+      const session = await fetchAuthSession();
+      const accessPayload = session.tokens?.accessToken?.payload as unknown as
+        | Record<string, unknown>
+        | undefined;
+      const idPayload = session.tokens?.idToken?.payload as unknown as
+        | Record<string, unknown>
+        | undefined;
+
+      const groupsRaw = (accessPayload?.['cognito:groups'] ??
+        idPayload?.['cognito:groups']) as unknown;
+      const groups = Array.isArray(groupsRaw)
+        ? groupsRaw
+        : typeof groupsRaw === 'string'
+          ? [groupsRaw]
+          : [];
+
+      if (groups.includes('admin')) return 'admin';
+    } catch {
+      // If session isn't available yet, fall through to allowlist/user.
+    }
+
+    // 2) Dev fallback: allowlist specific emails via Vite env var
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    if (normalizedEmail) {
+      const allowlist = getAdminEmailAllowlist();
+      if (allowlist.has(normalizedEmail)) return 'admin';
+    }
+
+    return 'user';
+  };
+
+  const getUserProfile = async (
+    fallbackUsername?: string,
+    fallbackEmail?: string
+  ): Promise<{ name: string; email: string }> => {
     try {
       const attrs = await fetchUserAttributes();
+      const email = (attrs.email || fallbackEmail || '').trim();
       const name = (attrs.name || '').trim();
-      if (name) return name;
+      if (name) return { name, email };
 
       // Optional if enabled in the user pool, but harmless to try.
       const given = (attrs.given_name || '').trim();
       const family = (attrs.family_name || '').trim();
       const fullFromParts = [given, family].filter(Boolean).join(' ').trim();
-      return fullFromParts || (fallbackUsername || '').trim();
+      return { name: fullFromParts || (fallbackUsername || '').trim(), email };
     } catch {
-      return (fallbackUsername || '').trim();
+      return {
+        name: (fallbackUsername || '').trim(),
+        email: (fallbackEmail || '').trim(),
+      };
     }
   };
 
@@ -125,12 +178,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const cognitoUser = await getCurrentUser();
         if (cancelled) return;
-        const displayName = await getDisplayName(cognitoUser.username);
+        const fallbackEmail = cognitoUser.signInDetails?.loginId || '';
+        const profile = await getUserProfile(cognitoUser.username, fallbackEmail);
+        const role = await getRole(profile.email);
         setUser({
           id: cognitoUser.userId,
-          email: cognitoUser.signInDetails?.loginId || '',
-          name: displayName,
-          role: 'user',
+          email: profile.email,
+          name: profile.name,
+          role,
           createdAt: new Date().toISOString(),
         });
         console.log('Cognito user:', JSON.stringify(cognitoUser, null, 2));
@@ -148,6 +203,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       cancelled = true;
     };
+    // Intentionally run once on mount; role/email resolution happens during auth check.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -155,12 +212,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { isSignedIn } = await signIn({ username: email, password });
       if (isSignedIn) {
         const cognitoUser = await getCurrentUser();
-        const displayName = await getDisplayName(cognitoUser.username);
+        const profile = await getUserProfile(cognitoUser.username, email);
+        const role = await getRole(profile.email);
         setUser({
           id: cognitoUser.userId,
-          email: email,
-          name: displayName,
-          role: 'user',
+          email: profile.email || email,
+          name: profile.name,
+          role,
           createdAt: new Date().toISOString(),
         });
       }

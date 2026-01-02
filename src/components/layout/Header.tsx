@@ -56,7 +56,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:block">
-            <Navigation />
+            <Navigation showAdmin={user?.role === 'admin'} />
           </div>
 
           {/* User Actions */}
@@ -126,7 +126,7 @@ export function Header() {
         {/* Mobile Navigation */}
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-white/20 animate-slide-in">
-            <Navigation mobile />
+            <Navigation mobile showAdmin={user?.role === 'admin'} />
             <div className="mt-4 space-y-2">
               {isLoading ? (
                 <div className="py-2 px-4">
