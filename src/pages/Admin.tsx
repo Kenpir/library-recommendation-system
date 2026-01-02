@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
-import { Modal } from '@/components/common/Modal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getBooks, createBook, deleteBook } from '@/services/api';
 import { Book } from '@/types';
@@ -13,7 +12,6 @@ import { handleApiError, showSuccess } from '@/utils/errorHandling';
 export function Admin() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [newBook, setNewBook] = useState({
     title: '',
     author: '',
@@ -25,9 +23,16 @@ export function Admin() {
     isbn: '',
   });
 
+  const [editBook, setEditBook] = useState<Book | null>(null);
+
   useEffect(() => {
     loadBooks();
   }, []);
+
+  useEffect(() => {
+    // Initialize Preline components
+    window.HSStaticMethods?.autoInit();
+  }, [books]);
 
   const loadBooks = async () => {
     setIsLoading(true);
@@ -51,9 +56,33 @@ export function Admin() {
       // TODO: Replace with Lambda API call
       const created = await createBook(newBook);
       setBooks([...books, created]);
-      setIsModalOpen(false);
+      closeAddBookOffcanvas();
       resetForm();
       showSuccess('Book added successfully!');
+    } catch (error) {
+      handleApiError(error);
+    }
+  };
+
+  const handleUpdateBook = async () => {
+    if (!editBook || !editBook.title || !editBook.author) {
+      alert('Please fill in required fields');
+      return;
+    }
+
+    try {
+      // TODO: Replace with Lambda API call for update
+      // const updated = await updateBook(editBook);
+      // Mock update for now
+      const updated = editBook;
+      setBooks(books.map((b) => (b.id === updated.id ? updated : b)));
+
+      closeEditBookOffcanvas();
+      // Delay clearing state to allow offcanvas close animation to finish
+      setTimeout(() => {
+        setEditBook(null);
+      }, 300);
+      showSuccess('Book updated successfully!');
     } catch (error) {
       handleApiError(error);
     }
@@ -85,6 +114,22 @@ export function Admin() {
       publishedYear: new Date().getFullYear(),
       isbn: '',
     });
+  };
+
+  const openAddBookOffcanvas = () => {
+    resetForm();
+  };
+
+  const closeAddBookOffcanvas = () => {
+    window.HSOverlay?.close('#add-book-offcanvas');
+  };
+
+  const openEditBookOffcanvas = (book: Book) => {
+    setEditBook({ ...book });
+  };
+
+  const closeEditBookOffcanvas = () => {
+    window.HSOverlay?.close('#edit-book-offcanvas');
   };
 
   if (isLoading) {
@@ -125,7 +170,11 @@ export function Admin() {
         <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Manage Books</h2>
-            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+            <Button
+              variant="primary"
+              onClick={openAddBookOffcanvas}
+              data-hs-overlay="#add-book-offcanvas"
+            >
               Add New Book
             </Button>
           </div>
@@ -150,7 +199,12 @@ export function Admin() {
                     <td className="py-3 px-4">{book.rating}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
-                        <Button variant="secondary" size="sm">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openEditBookOffcanvas(book)}
+                          data-hs-overlay="#edit-book-offcanvas"
+                        >
                           Edit
                         </Button>
                         <Button
@@ -169,9 +223,43 @@ export function Admin() {
           </div>
         </div>
 
-        {/* Add Book Modal */}
-        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Book">
-          <div className="max-h-[60vh] overflow-y-auto">
+        {/* Add Book Offcanvas */}
+        <div
+          id="add-book-offcanvas"
+          className="hs-overlay hidden fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200"
+          style={{ backgroundColor: 'white', zIndex: 80 }}
+          tabIndex={-1}
+          data-hs-overlay-options='{
+            "bodyScroll": true,
+            "backdrop": true
+          }'
+        >
+          <div className="flex justify-between items-center py-3 px-4 border-b border-gray-200">
+            <h3 className="font-bold text-gray-800">Add New Book</h3>
+            <button
+              type="button"
+              className="flex justify-center items-center size-7 text-sm font-semibold rounded-full border border-transparent text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none"
+              onClick={closeAddBookOffcanvas}
+            >
+              <span className="sr-only">Close modal</span>
+              <svg
+                className="shrink-0 size-4"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 18 18"></path>
+              </svg>
+            </button>
+          </div>
+          <div className="p-4 space-y-4 overflow-y-auto h-[calc(100vh-60px)] pb-20">
             <Input
               label="Title"
               type="text"
@@ -196,7 +284,7 @@ export function Admin() {
               required
             />
 
-            <div className="mb-4">
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <textarea
                 value={newBook.description}
@@ -236,16 +324,132 @@ export function Admin() {
               onChange={(e) => setNewBook({ ...newBook, isbn: e.target.value })}
             />
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 pt-4">
               <Button variant="primary" onClick={handleCreateBook} className="flex-1">
                 Add Book
               </Button>
-              <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
+              <Button variant="secondary" onClick={closeAddBookOffcanvas} className="flex-1">
                 Cancel
               </Button>
             </div>
           </div>
-        </Modal>
+        </div>
+
+        {/* Edit Book Offcanvas */}
+        <div
+          id="edit-book-offcanvas"
+          className="hs-overlay hidden fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200"
+          style={{ backgroundColor: 'white', zIndex: 80 }}
+          tabIndex={-1}
+          data-hs-overlay-options='{
+            "bodyScroll": true,
+            "backdrop": true
+          }'
+        >
+          <div className="flex justify-between items-center py-3 px-4 border-b border-gray-200">
+            <h3 className="font-bold text-gray-800">Edit Book</h3>
+            <button
+              type="button"
+              className="flex justify-center items-center size-7 text-sm font-semibold rounded-full border border-transparent text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none"
+              onClick={closeEditBookOffcanvas}
+            >
+              <span className="sr-only">Close modal</span>
+              <svg
+                className="shrink-0 size-4"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 18 18"></path>
+              </svg>
+            </button>
+          </div>
+          <div className="p-4 space-y-4 overflow-y-auto h-[calc(100vh-60px)] pb-20">
+            {editBook && (
+              <>
+                <Input
+                  label="Title"
+                  type="text"
+                  value={editBook.title}
+                  onChange={(e) => setEditBook({ ...editBook, title: e.target.value })}
+                  required
+                />
+
+                <Input
+                  label="Author"
+                  type="text"
+                  value={editBook.author}
+                  onChange={(e) => setEditBook({ ...editBook, author: e.target.value })}
+                  required
+                />
+
+                <Input
+                  label="Genre"
+                  type="text"
+                  value={editBook.genre}
+                  onChange={(e) => setEditBook({ ...editBook, genre: e.target.value })}
+                  required
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <textarea
+                    value={editBook.description || ''}
+                    onChange={(e) => setEditBook({ ...editBook, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px] resize-none"
+                  />
+                </div>
+
+                <Input
+                  label="Cover Image URL"
+                  type="text"
+                  value={editBook.coverImage || ''}
+                  onChange={(e) => setEditBook({ ...editBook, coverImage: e.target.value })}
+                />
+
+                <Input
+                  label="Rating"
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={editBook.rating}
+                  onChange={(e) => setEditBook({ ...editBook, rating: parseFloat(e.target.value) })}
+                />
+
+                <Input
+                  label="Published Year"
+                  type="number"
+                  value={editBook.publishedYear}
+                  onChange={(e) => setEditBook({ ...editBook, publishedYear: parseInt(e.target.value) })}
+                />
+
+                <Input
+                  label="ISBN"
+                  type="text"
+                  value={editBook.isbn || ''}
+                  onChange={(e) => setEditBook({ ...editBook, isbn: e.target.value })}
+                />
+
+                <div className="flex gap-3 pt-4">
+                  <Button variant="primary" onClick={handleUpdateBook} className="flex-1">
+                    Save Changes
+                  </Button>
+                  <Button variant="secondary" onClick={closeEditBookOffcanvas} className="flex-1">
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
