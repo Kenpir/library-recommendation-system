@@ -232,7 +232,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await signOut();
       setUser(null);
-      // Back-compat: clear any leftover mock user so we don't "auto-login" on refresh.
       localStorage.removeItem('user');
     } catch (error) {
       console.error('Logout error:', error);

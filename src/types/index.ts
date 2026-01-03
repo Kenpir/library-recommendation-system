@@ -42,8 +42,8 @@ export interface Review {
 }
 
 export interface Recommendation {
-  id: string;
-  bookId: string;
+  title: string;
+  author: string;
   reason: string;
   confidence: number;
 }
