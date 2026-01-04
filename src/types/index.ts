@@ -28,6 +28,7 @@ export interface ReadingList {
   name: string;
   description: string;
   bookIds: string[];
+  completedBookIds?: string[];
   createdAt: string;
   updatedAt: string;
 }

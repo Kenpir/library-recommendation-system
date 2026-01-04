@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -19,6 +20,7 @@ import { confirmPopup } from '@/utils/confirm';
  * ReadingLists page component
  */
 export function ReadingLists() {
+  const navigate = useNavigate();
   const [lists, setLists] = useState<ReadingList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newListName, setNewListName] = useState('');
@@ -232,7 +234,16 @@ export function ReadingLists() {
             {lists.map((list) => (
               <div
                 key={list.id}
-                className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-xl hover:border-blue-300 transition-all duration-300"
+                className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-xl hover:border-blue-300 transition-all duration-300 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/reading-lists/${list.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/reading-lists/${list.id}`);
+                  }
+                }}
               >
                 <h3 className="text-xl font-bold text-slate-900 mb-2">{list.name}</h3>
                 <p className="text-slate-600 mb-4 line-clamp-2">{list.description}</p>
@@ -243,7 +254,10 @@ export function ReadingLists() {
                 <div className="flex gap-3">
                   <Button
                     variant="secondary"
-                    onClick={() => openEditModal(list)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditModal(list);
+                    }}
                     className="flex-1"
                     data-hs-overlay="#edit-reading-list-offcanvas"
                   >
@@ -251,7 +265,10 @@ export function ReadingLists() {
                   </Button>
                   <Button
                     variant="secondary"
-                    onClick={() => handleDeleteList(list.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteList(list.id);
+                    }}
                     className="flex-1 bg-red-50! text-red-600! hover:bg-red-100! hover:border-red-200!"
                   >
                     Delete
