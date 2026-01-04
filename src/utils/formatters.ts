@@ -26,6 +26,24 @@ export function formatRating(rating: number): string {
 }
 
 /**
+ * Formats a rating if present; otherwise returns "NR" (No Reviews)
+ */
+export function formatRatingOrNR(rating: number | null | undefined): string {
+  if (typeof rating !== 'number' || !Number.isFinite(rating)) return 'NR';
+  return formatRating(rating);
+}
+
+/**
+ * Computes the average rating from a list of numeric ratings.
+ * Returns null when there are no valid ratings.
+ */
+export function averageRating(values: Array<number | null | undefined>): number | null {
+  const valid = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  if (valid.length === 0) return null;
+  return valid.reduce((sum, v) => sum + v, 0) / valid.length;
+}
+
+/**
  * Truncates text to a specified length and adds ellipsis
  * @param text - Text to truncate
  * @param maxLength - Maximum length before truncation

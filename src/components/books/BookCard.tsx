@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Book } from '@/types';
-import { formatRating } from '@/utils/formatters';
+import { formatRatingOrNR } from '@/utils/formatters';
 import { Button } from '@/components/common/Button';
 
 /**
@@ -8,6 +8,7 @@ import { Button } from '@/components/common/Button';
  */
 interface BookCardProps {
   book: Book;
+  reviewAverageRating?: number | null;
 }
 
 /**
@@ -16,7 +17,7 @@ interface BookCardProps {
  * @example
  * <BookCard book={book} />
  */
-export function BookCard({ book }: BookCardProps) {
+export function BookCard({ book, reviewAverageRating }: BookCardProps) {
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -37,7 +38,7 @@ export function BookCard({ book }: BookCardProps) {
             e.currentTarget.src = 'https://via.placeholder.com/300x400?text=No+Cover';
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div className="absolute inset-0 bg-linear-to-t from-slate-900/90 via-slate-900/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
           <Button
             variant="secondary"
@@ -59,7 +60,9 @@ export function BookCard({ book }: BookCardProps) {
               <svg className="w-4 h-4 text-amber-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
-              <span className="text-sm font-bold text-slate-900">{formatRating(book.rating)}</span>
+              <span className="text-sm font-bold text-slate-900">
+                {typeof reviewAverageRating === 'undefined' ? '…' : formatRatingOrNR(reviewAverageRating)}
+              </span>
             </div>
           </div>
         </div>

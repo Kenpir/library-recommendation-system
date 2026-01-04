@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo, type ReactElement } from 'react';
 import { BookSearch, type FilterState } from '@/components/books/BookSearch';
 import { BookGrid } from '@/components/books/BookGrid';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { getBooks } from '@/services/api';
+import { getBooks, getReviews } from '@/services/api';
 import { Book } from '@/types';
 import { handleApiError } from '@/utils/errorHandling';
+import { averageRating } from '@/utils/formatters';
 
 /**
  * Helper function to sort books based on criteria
@@ -36,6 +37,9 @@ export function Books() {
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState('title');
   const [currentPage, setCurrentPage] = useState(1);
+  const [reviewAverageByBookId, setReviewAverageByBookId] = useState<
+    Record<string, number | null | undefined>
+  >({});
 
   // Derive unique values for filters
   const uniqueGenres = useMemo(() => Array.from(new Set(books.map(b => b.genre))).sort(), [books]);
@@ -121,6 +125,48 @@ export function Books() {
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, filteredBooks.length);
   const paginatedBooks = filteredBooks.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const missingIds = paginatedBooks
+      .map((b) => b.id)
+      .filter((id) => typeof reviewAverageByBookId[id] === 'undefined');
+
+    if (missingIds.length === 0) return;
+
+    const loadAverages = async () => {
+      try {
+        const results = await Promise.allSettled(
+          missingIds.map(async (id) => {
+            const reviews = await getReviews(id).catch(() => []);
+            const avg = averageRating(reviews.map((r) => r.rating));
+            return { id, avg };
+          })
+        );
+
+        if (isCancelled) return;
+
+        setReviewAverageByBookId((prev) => {
+          const next = { ...prev };
+          for (const r of results) {
+            if (r.status === 'fulfilled') {
+              next[r.value.id] = r.value.avg;
+            }
+          }
+          return next;
+        });
+      } catch {
+        // Best-effort; per-book errors already handled.
+      }
+    };
+
+    loadAverages();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [paginatedBooks, reviewAverageByBookId]);
 
   const setPageSafe = (page: number) => {
     const next = Math.min(Math.max(1, page), totalPages);
@@ -214,7 +260,7 @@ export function Books() {
         </div>
 
         {/* Book Grid */}
-        <BookGrid books={paginatedBooks} />
+        <BookGrid books={paginatedBooks} reviewAverageByBookId={reviewAverageByBookId} />
 
         {/* Pagination (10 books per page) */}
         {filteredBooks.length > pageSize && (
