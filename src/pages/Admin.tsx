@@ -11,7 +11,7 @@ import {
   deleteBook,
   getAllReadingLists,
   getUsers,
-  getReviews,
+  getAllReviews,
   adminDeleteReview,
 } from '@/services/api';
 import { Book, Review } from '@/types';
@@ -256,27 +256,8 @@ export function Admin() {
   const loadReviews = async () => {
     setIsReviewsLoading(true);
     try {
-      // Limit to first 20 books to prevent API flooding until a dedicated endpoint exists
-      const limit = 20;
-      const targetBooks = books.slice(0, limit);
-      const allReviews: Review[] = [];
-
-      // Fetch in parallel batches
-      const batchSize = 8;
-      for (let i = 0; i < targetBooks.length; i += batchSize) {
-        const batch = targetBooks.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batch.map((book) =>
-            getReviews(book.id).catch((err) => {
-              console.warn(`Failed to fetch reviews for book ${book.id}:`, err);
-              return [];
-            })
-          )
-        );
-        batchResults.forEach((r) => allReviews.push(...r));
-      }
-
-      const sortedReviews = allReviews.sort(
+      const { items } = await getAllReviews({ limit: 100 });
+      const sortedReviews = items.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setReviews(sortedReviews);
@@ -387,6 +368,11 @@ export function Admin() {
             {activeTab === 'books' && (
               <Button variant="primary" onClick={openAddBookOffcanvas}>
                 Add New Book
+              </Button>
+            )}
+            {activeTab === 'reviews' && (
+              <Button variant="secondary" onClick={loadReviews} disabled={isReviewsLoading}>
+                {isReviewsLoading ? 'Refreshing...' : 'Refresh Reviews'}
               </Button>
             )}
           </div>

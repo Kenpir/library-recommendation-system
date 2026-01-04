@@ -447,16 +447,104 @@ export async function deleteReadingList(id: string): Promise<void> {
 /**
  * Get reviews for a book
  */
+/**
+ * Get all reviews (admin only, scans entire table)
+ */
+export async function getAllReviews(
+  options: { limit?: number; nextToken?: string } = {}
+): Promise<{ items: Review[]; nextToken?: string }> {
+  try {
+    const headers = await getAuthHeaders();
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.nextToken) params.append('nextToken', options.nextToken);
+
+    const response = await fetch(`${API_BASE_URL}/admin/reviews?${params.toString()}`, {
+      headers,
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(
+        `Failed to fetch all reviews: ${response.status} ${response.statusText}. ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    // The lambda returns { items: [...], nextToken: ... }
+    const itemsRaw = (data.items || []) as unknown[];
+    const nextToken = data.nextToken as string | undefined;
+
+    interface RawReviewItem {
+      id?: string;
+      reviewId?: string;
+      bookId?: string;
+      userId?: string;
+      userName?: string;
+      name?: string;
+      userDisplayName?: string;
+      rating?: number;
+      comment?: string;
+      createdAt?: string;
+    }
+
+    // Helper to map raw items to Review type
+    const mapToReview = (item: unknown): Review | null => {
+      if (!isObject(item)) return null;
+      const raw = item as RawReviewItem;
+
+      const id = raw.id ?? raw.reviewId;
+      if (
+        !id ||
+        !raw.bookId ||
+        !raw.userId ||
+        typeof raw.rating !== 'number' ||
+        !raw.comment ||
+        !raw.createdAt
+      ) {
+        return null;
+      }
+
+      return {
+        id,
+        bookId: raw.bookId,
+        userId: raw.userId,
+        userName: raw.userName ?? raw.name ?? raw.userDisplayName,
+        rating: raw.rating,
+        comment: raw.comment,
+        createdAt: raw.createdAt,
+      };
+    };
+
+    const items = itemsRaw.map(mapToReview).filter((r): r is Review => r !== null);
+
+    return { items, nextToken };
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(
+        `Network error: Unable to connect to API at ${API_BASE_URL}. Please check your API configuration and ensure the server is running.`
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get reviews for a book
+ */
 export async function getReviews(bookId: string): Promise<Review[]> {
   try {
-    // Some deployments protect GET reviews behind Cognito as well, so include auth headers.
+    // ... existing getReviews logic ...
     const headers = await getAuthHeaders();
     const response = await fetch(
       `${API_BASE_URL}/books/${encodeURIComponent(bookId)}/reviews?limit=50`,
       {
         headers,
+        cache: 'no-store',
       }
     );
+    // ... existing getReviews logic ...
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
