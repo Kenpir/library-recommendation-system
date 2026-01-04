@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -17,6 +17,7 @@ import {
 import { Book, Review } from '@/types';
 import { handleApiError, showSuccess, showWarning } from '@/utils/errorHandling';
 import { confirmPopup } from '@/utils/confirm';
+import { formatRatingOrNR } from '@/utils/formatters';
 
 /**
  * Admin page component for managing books and viewing metrics
@@ -34,7 +35,6 @@ export function Admin() {
     genre: '',
     description: '',
     coverImage: '',
-    rating: 0,
     publishedYear: new Date().getFullYear(),
     isbn: '',
   });
@@ -50,8 +50,36 @@ export function Admin() {
   const [isReviewsLoading, setIsReviewsLoading] = useState(false);
   const [reviewsPage, setReviewsPage] = useState(1);
 
-  useEffect(() => {
-    loadData();
+  const averageRatingByBookId = useMemo(() => {
+    const acc = new Map<string, { sum: number; count: number }>();
+    for (const r of reviews) {
+      const cur = acc.get(r.bookId) ?? { sum: 0, count: 0 };
+      cur.sum += r.rating;
+      cur.count += 1;
+      acc.set(r.bookId, cur);
+    }
+    const avg = new Map<string, number>();
+    for (const [bookId, { sum, count }] of acc.entries()) {
+      if (count > 0) avg.set(bookId, sum / count);
+    }
+    return avg;
+  }, [reviews]);
+
+  const fetchAllReviews = useCallback(async (): Promise<Review[]> => {
+    const all: Review[] = [];
+    let nextToken: string | undefined = undefined;
+    let pageGuard = 0;
+
+    do {
+      // Guard against accidental infinite loops if backend returns the same token repeatedly
+      if (pageGuard++ > 50) break;
+
+      const res = await getAllReviews({ limit: 200, nextToken });
+      all.push(...res.items);
+      nextToken = res.nextToken;
+    } while (nextToken);
+
+    return all;
   }, []);
 
   useEffect(() => {
@@ -114,23 +142,32 @@ export function Admin() {
     return pages;
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [booksData, readingListsData, usersData] = await Promise.all([
+      const [booksData, readingListsData, usersData, reviewsData] = await Promise.all([
         getBooks(),
         getAllReadingLists().catch(() => []),
         getUsers().catch(() => []),
+        fetchAllReviews().catch(() => []),
       ]);
       setBooks(booksData);
       setReadingListCount(readingListsData.length);
       setUserCount(usersData.length);
+      const sortedReviews = reviewsData.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setReviews(sortedReviews);
     } catch (error) {
       handleApiError(error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchAllReviews]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const openAddBookOffcanvas = () => {
     // Rely on data attribute for opening, or programmatic if needed
@@ -141,7 +178,6 @@ export function Admin() {
       genre: '',
       description: '',
       coverImage: '',
-      rating: 0,
       publishedYear: new Date().getFullYear(),
       isbn: '',
     });
@@ -176,7 +212,10 @@ export function Admin() {
     }
 
     try {
-      const created = await createBook(newBook);
+      const created = await createBook({
+        ...newBook,
+        rating: 0,
+      });
 
       closeAddBookOffcanvas();
 
@@ -206,7 +245,7 @@ export function Admin() {
         genre: editBook.genre,
         description: editBook.description,
         coverImage: editBook.coverImage,
-        rating: editBook.rating,
+        rating: 0,
         publishedYear: editBook.publishedYear,
         isbn: editBook.isbn,
       };
@@ -256,7 +295,7 @@ export function Admin() {
   const loadReviews = async () => {
     setIsReviewsLoading(true);
     try {
-      const { items } = await getAllReviews({ limit: 100 });
+      const items = await fetchAllReviews();
       const sortedReviews = items.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
@@ -428,7 +467,9 @@ export function Admin() {
                           </td>
                           <td className="py-3 px-4">{book.author}</td>
                           <td className="py-3 px-4">{book.genre}</td>
-                          <td className="py-3 px-4">{book.rating}</td>
+                          <td className="py-3 px-4">
+                            {formatRatingOrNR(averageRatingByBookId.get(book.id) ?? null)}
+                          </td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
                               <Button
@@ -692,16 +733,6 @@ export function Admin() {
             </div>
 
             <Input
-              label="Rating (0-5)"
-              type="number"
-              min="0"
-              max="5"
-              step="0.1"
-              value={newBook.rating}
-              onChange={(e) => setNewBook({ ...newBook, rating: parseFloat(e.target.value) })}
-            />
-
-            <Input
               label="Published Year"
               type="number"
               value={newBook.publishedYear}
@@ -791,16 +822,6 @@ export function Admin() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px] resize-none"
                   />
                 </div>
-
-                <Input
-                  label="Rating"
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={editBook.rating}
-                  onChange={(e) => setEditBook({ ...editBook, rating: parseFloat(e.target.value) })}
-                />
 
                 <Input
                   label="Published Year"
