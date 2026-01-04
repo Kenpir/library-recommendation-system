@@ -170,8 +170,6 @@ export function Admin() {
   }, [loadData]);
 
   const openAddBookOffcanvas = () => {
-    // Rely on data attribute for opening, or programmatic if needed
-    // But we need to reset form state
     setNewBook({
       title: '',
       author: '',
@@ -182,27 +180,39 @@ export function Admin() {
       isbn: '',
     });
     setAddCoverUploadReset((prev) => prev + 1);
-    // Allow React to render the form state before opening
+
     setTimeout(() => {
-      window.HSOverlay?.open('#add-book-offcanvas');
+      const el = document.getElementById('add-book-offcanvas');
+      if (el && window.HSOverlay) {
+        window.HSOverlay.open(el);
+      }
     }, 10);
   };
 
   const closeAddBookOffcanvas = () => {
-    window.HSOverlay?.close('#add-book-offcanvas');
+    const el = document.getElementById('add-book-offcanvas');
+    if (el && window.HSOverlay) {
+      window.HSOverlay.close(el);
+    }
   };
 
   const openEditBookOffcanvas = (book: Book) => {
     setEditBook(book);
     setEditCoverUploadReset((prev) => prev + 1);
-    // Allow React to render the form data before opening
+
     setTimeout(() => {
-      window.HSOverlay?.open('#edit-book-offcanvas');
+      const el = document.getElementById('edit-book-offcanvas');
+      if (el && window.HSOverlay) {
+        window.HSOverlay.open(el);
+      }
     }, 10);
   };
 
   const closeEditBookOffcanvas = () => {
-    window.HSOverlay?.close('#edit-book-offcanvas');
+    const el = document.getElementById('edit-book-offcanvas');
+    if (el && window.HSOverlay) {
+      window.HSOverlay.close(el);
+    }
   };
 
   const handleCreateBook = async () => {
@@ -760,7 +770,7 @@ export function Admin() {
         {/* Edit Book Offcanvas */}
         <div
           id="edit-book-offcanvas"
-          className="hs-overlay hidden fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200"
+          className={`hs-overlay ${editBook ? '' : 'hidden'} fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200`}
           style={{ backgroundColor: 'white', zIndex: 80 }}
           tabIndex={-1}
           data-hs-overlay-options='{

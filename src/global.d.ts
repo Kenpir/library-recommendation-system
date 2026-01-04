@@ -6,8 +6,8 @@ declare global {
       autoInit: () => void;
     };
     HSOverlay?: {
-      open: (selector: string) => void;
-      close: (selector: string) => void;
+      open: (selector: string | HTMLElement) => void;
+      close: (selector: string | HTMLElement) => void;
     };
 
     __amplifyAuth?: {
