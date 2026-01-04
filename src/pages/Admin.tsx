@@ -46,9 +46,13 @@ export function Admin() {
   }, []);
 
   useEffect(() => {
-    // Initialize Preline components
-    window.HSStaticMethods?.autoInit();
-  }, [books]);
+    // Initialize Preline components once the loading state is resolved and elements are in DOM
+    if (!isLoading) {
+      setTimeout(() => {
+        window.HSStaticMethods?.autoInit();
+      }, 100);
+    }
+  }, [isLoading]);
 
   const filterBooksByTitle = (allBooks: Book[], query: string) => {
     const q = query.trim().toLowerCase();
@@ -122,6 +126,10 @@ export function Admin() {
       isbn: '',
     });
     setAddCoverUploadReset((prev) => prev + 1);
+    // Allow React to render the form state before opening
+    setTimeout(() => {
+      window.HSOverlay?.open('#add-book-offcanvas');
+    }, 10);
   };
 
   const closeAddBookOffcanvas = () => {
@@ -131,6 +139,10 @@ export function Admin() {
   const openEditBookOffcanvas = (book: Book) => {
     setEditBook(book);
     setEditCoverUploadReset((prev) => prev + 1);
+    // Allow React to render the form data before opening
+    setTimeout(() => {
+      window.HSOverlay?.open('#edit-book-offcanvas');
+    }, 10);
   };
 
   const closeEditBookOffcanvas = () => {
@@ -145,12 +157,17 @@ export function Admin() {
 
     try {
       const created = await createBook(newBook);
-      const nextBooks = [...books, created];
-      setBooks(nextBooks);
-      const nextFiltered = filterBooksByTitle(nextBooks, titleSearch);
-      setCurrentPage(Math.max(1, Math.ceil(nextFiltered.length / BOOKS_PER_PAGE)));
+
       closeAddBookOffcanvas();
-      showSuccess('Book added successfully!');
+
+      // Delay state updates to prevent DOM thrashing during close animation
+      setTimeout(() => {
+        const nextBooks = [...books, created];
+        setBooks(nextBooks);
+        const nextFiltered = filterBooksByTitle(nextBooks, titleSearch);
+        setCurrentPage(Math.max(1, Math.ceil(nextFiltered.length / BOOKS_PER_PAGE)));
+        showSuccess('Book added successfully!');
+      }, 400);
     } catch (error) {
       handleApiError(error);
     }
@@ -163,15 +180,27 @@ export function Admin() {
     }
 
     try {
-      const updated = await updateBook(editBook.id, editBook);
-      setBooks(books.map((b) => (b.id === updated.id ? updated : b)));
+      const updatePayload = {
+        title: editBook.title,
+        author: editBook.author,
+        genre: editBook.genre,
+        description: editBook.description,
+        coverImage: editBook.coverImage,
+        rating: editBook.rating,
+        publishedYear: editBook.publishedYear,
+        isbn: editBook.isbn,
+      };
+
+      const updated = await updateBook(editBook.id, updatePayload);
 
       closeEditBookOffcanvas();
-      // Delay clearing state to allow offcanvas close animation to finish
+
+      // Delay state updates to prevent DOM thrashing during close animation
       setTimeout(() => {
+        setBooks(books.map((b) => (b.id === updated.id ? updated : b)));
         setEditBook(null);
-      }, 300);
-      showSuccess('Book updated successfully!');
+        showSuccess('Book updated successfully!');
+      }, 400);
     } catch (error) {
       console.error(error); // Log detailed error
       handleApiError(error);
@@ -234,11 +263,7 @@ export function Admin() {
         <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Manage Books</h2>
-            <Button
-              variant="primary"
-              onClick={openAddBookOffcanvas}
-              data-hs-overlay="#add-book-offcanvas"
-            >
+            <Button variant="primary" onClick={openAddBookOffcanvas}>
               Add New Book
             </Button>
           </div>
@@ -299,7 +324,6 @@ export function Admin() {
                             variant="secondary"
                             size="sm"
                             onClick={() => openEditBookOffcanvas(book)}
-                            data-hs-overlay="#edit-book-offcanvas"
                           >
                             Edit
                           </Button>
@@ -529,8 +553,6 @@ export function Admin() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px] resize-none"
                   />
                 </div>
-
-
 
                 <Input
                   label="Rating"

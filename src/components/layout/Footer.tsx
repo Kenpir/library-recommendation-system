@@ -16,8 +16,8 @@ export function Footer() {
       </div>
 
       <div className="container mx-auto px-4 py-12 relative z-10">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="mb-6 md:mb-0 text-center md:text-left">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+          <div className="text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start space-x-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg">
                 <svg
@@ -41,7 +41,7 @@ export function Footer() {
             </p>
           </div>
 
-          <div className="flex space-x-8 mb-6 md:mb-0">
+          <div className="flex justify-center space-x-8">
             <Link
               to="/about"
               className="text-sm text-slate-300 hover:text-white transition-colors font-medium hover:underline"
@@ -62,7 +62,7 @@ export function Footer() {
             </Link>
           </div>
 
-          <div className="flex space-x-3">
+          <div className="flex justify-center md:justify-end space-x-3">
             <a
               href="https://github.com/Kenpir/library-recommendation-system"
               className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-sm hover:bg-white/20 flex items-center justify-center transition-all hover:scale-110 border border-white/20"

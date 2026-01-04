@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/common/Button';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getRecommendations, getBooks } from '@/services/api';
@@ -22,7 +22,9 @@ export function Recommendations() {
       const title = rec.title.toLowerCase();
       const author = rec.author.toLowerCase();
 
-      const exact = books.find((b) => b.title.toLowerCase() === title && b.author.toLowerCase() === author);
+      const exact = books.find(
+        (b) => b.title.toLowerCase() === title && b.author.toLowerCase() === author
+      );
       const titleMatch = books.find((b) => b.title.toLowerCase().includes(title));
       const authorMatch = books.find((b) => b.author.toLowerCase().includes(author));
 
@@ -37,7 +39,7 @@ export function Recommendations() {
     } catch (error) {
       handleApiError(error);
     }
-  }; 
+  };
 
   const exampleQueries = [
     'I love mystery novels with strong female protagonists',
@@ -45,6 +47,8 @@ export function Recommendations() {
     'Recommend me some feel-good romance novels',
     'I want to read about personal development and productivity',
   ];
+
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const handleGetRecommendations = async () => {
     if (!query.trim()) {
@@ -56,6 +60,10 @@ export function Recommendations() {
     try {
       const recs = await getRecommendations(query.trim());
       setRecommendations(recs);
+      // Wait for DOM to update with new results
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } catch (error) {
       handleApiError(error);
     } finally {
@@ -151,7 +159,7 @@ export function Recommendations() {
         )}
 
         {!isLoading && recommendations.length > 0 && (
-          <div>
+          <div ref={resultsRef} className="scroll-mt-24">
             <h2 className="text-3xl font-bold mb-8">
               <span className="gradient-text">Recommended for You</span>
             </h2>

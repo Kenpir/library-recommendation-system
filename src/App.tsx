@@ -18,6 +18,8 @@ import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
 import { NotFound } from './pages/NotFound';
 
+import { ScrollToTop } from './components/common/ScrollToTop';
+
 /**
  * Main App component with routing and layout
  */
@@ -36,6 +38,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ScrollToTop />
         <PrelineAutoInit />
         <div className="flex flex-col min-h-screen">
           <Header />

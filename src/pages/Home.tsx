@@ -1,6 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/common/Button';
+import { CountUp } from '@/components/common/CountUp';
 import { useAuth } from '@/hooks/useAuth';
+import { getBooks, getUsers } from '@/services/api';
 
 /**
  * Modern Home page with stunning gradients and animations
@@ -8,6 +11,24 @@ import { useAuth } from '@/hooks/useAuth';
 export function Home() {
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
+  const [bookCount, setBookCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const [books, users] = await Promise.all([
+          getBooks().catch(() => []),
+          getUsers().catch(() => []),
+        ]);
+        setBookCount(books.length);
+        setUserCount(users.length);
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    };
+    loadStats();
+  }, []);
 
   const handleGetStarted = () => {
     if (isLoading) return;
@@ -64,11 +85,15 @@ export function Home() {
           {/* Stats */}
           <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="glass-dark rounded-2xl p-6">
-              <div className="text-4xl font-bold text-white mb-2">10,000+</div>
+              <div className="text-4xl font-bold text-white mb-2">
+                <CountUp end={Math.max(0, bookCount - 1)} duration={2000} />+
+              </div>
               <div className="text-slate-300">Books Available</div>
             </div>
             <div className="glass-dark rounded-2xl p-6">
-              <div className="text-4xl font-bold text-white mb-2">50,000+</div>
+              <div className="text-4xl font-bold text-white mb-2">
+                <CountUp end={Math.max(0, userCount - 1)} duration={2000} />+
+              </div>
               <div className="text-slate-300">Happy Readers</div>
             </div>
             <div className="glass-dark rounded-2xl p-6">
