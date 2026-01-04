@@ -2,6 +2,8 @@
  * Error handling utilities
  */
 
+import { emitToast } from '@/utils/toast';
+
 /**
  * Handles API errors and displays user-friendly messages
  *
@@ -21,8 +23,7 @@ export function handleApiError(error: unknown): void {
     message = error;
   }
 
-  // For now, use alert (replace with toast notification)
-  alert(`Error: ${message}`);
+  emitToast({ variant: 'error', title: 'Error', message });
   console.error('API Error:', error);
 }
 
@@ -32,6 +33,14 @@ export function handleApiError(error: unknown): void {
  * TODO: Replace with toast.success(message)
  */
 export function showSuccess(message: string): void {
-  alert(`Success: ${message}`);
+  emitToast({ variant: 'success', title: 'Success', message });
   console.log('Success:', message);
+}
+
+/**
+ * Shows a warning message to the user
+ */
+export function showWarning(message: string): void {
+  emitToast({ variant: 'warning', title: 'Warning', message });
+  console.warn('Warning:', message);
 }

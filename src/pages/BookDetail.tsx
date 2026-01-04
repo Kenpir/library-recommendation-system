@@ -15,7 +15,8 @@ import {
 import { Book, ReadingList, Review } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { averageRating, formatDate, formatRatingOrNR, formatRating } from '@/utils/formatters';
-import { handleApiError, showSuccess } from '@/utils/errorHandling';
+import { handleApiError, showSuccess, showWarning } from '@/utils/errorHandling';
+import { confirmPopup } from '@/utils/confirm';
 
 /**
  * BookDetail page component
@@ -152,7 +153,13 @@ export function BookDetail() {
       return;
     }
 
-    const ok = window.confirm('Delete this review?');
+    const ok = await confirmPopup({
+      title: 'Delete review?',
+      message: 'Delete this review?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
     if (!ok) return;
 
     setReviewsError(null);
@@ -200,7 +207,7 @@ export function BookDetail() {
       const list = lists.find((l) => l.id === targetId);
       if (!list) return;
       if (list.bookIds.includes(book.id)) {
-        alert('This book is already in the selected list');
+        showWarning('This book is already in the selected list');
         return;
       }
       const updated = await updateReadingList(targetId, { bookIds: [...list.bookIds, book.id] });
@@ -216,7 +223,7 @@ export function BookDetail() {
 
   const handleCreateListWithBook = async () => {
     if (!newListNameForQuickCreate.trim()) {
-      alert('Please enter a name for the list');
+      showWarning('Please enter a name for the list');
       return;
     }
     try {

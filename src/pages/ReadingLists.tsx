@@ -11,8 +11,9 @@ import {
 } from '@/services/api';
 import type { Book, ReadingList } from '@/types';
 import { formatDate } from '@/utils/formatters';
-import { handleApiError, showSuccess } from '@/utils/errorHandling';
+import { handleApiError, showSuccess, showWarning } from '@/utils/errorHandling';
 import { SearchableMultiSelect } from '@/components/common/SearchableMultiSelect';
+import { confirmPopup } from '@/utils/confirm';
 
 /**
  * ReadingLists page component
@@ -65,7 +66,7 @@ export function ReadingLists() {
 
   const handleCreateList = async () => {
     if (!newListName.trim()) {
-      alert('Please enter a list name');
+      showWarning('Please enter a list name');
       return;
     }
 
@@ -107,7 +108,7 @@ export function ReadingLists() {
   const handleUpdateList = async () => {
     if (!editListId) return;
     if (!editListName.trim()) {
-      alert('Please enter a list name');
+      showWarning('Please enter a list name');
       return;
     }
 
@@ -127,7 +128,14 @@ export function ReadingLists() {
   };
 
   const handleDeleteList = async (listId: string) => {
-    if (!window.confirm('Are you sure you want to delete this reading list?')) {
+    const ok = await confirmPopup({
+      title: 'Delete reading list?',
+      message: 'Are you sure you want to delete this reading list?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    if (!ok) {
       return;
     }
 

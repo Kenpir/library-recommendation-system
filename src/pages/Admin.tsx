@@ -15,7 +15,8 @@ import {
   adminDeleteReview,
 } from '@/services/api';
 import { Book, Review } from '@/types';
-import { handleApiError, showSuccess } from '@/utils/errorHandling';
+import { handleApiError, showSuccess, showWarning } from '@/utils/errorHandling';
+import { confirmPopup } from '@/utils/confirm';
 
 /**
  * Admin page component for managing books and viewing metrics
@@ -170,7 +171,7 @@ export function Admin() {
 
   const handleCreateBook = async () => {
     if (!newBook.title || !newBook.author) {
-      alert('Please fill in required fields');
+      showWarning('Please fill in required fields');
       return;
     }
 
@@ -194,7 +195,7 @@ export function Admin() {
 
   const handleUpdateBook = async () => {
     if (!editBook || !editBook.title || !editBook.author) {
-      alert('Please fill in required fields');
+      showWarning('Please fill in required fields');
       return;
     }
 
@@ -227,9 +228,14 @@ export function Admin() {
   };
 
   const handleDeleteBook = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this book?')) {
-      return;
-    }
+    const ok = await confirmPopup({
+      title: 'Delete book?',
+      message: 'Are you sure you want to delete this book?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
     try {
       await deleteBook(id);
@@ -282,7 +288,14 @@ export function Admin() {
   };
 
   const handleDeleteReview = async (bookId: string, reviewId: string) => {
-    if (!confirm('Are you sure you want to delete this review?')) return;
+    const ok = await confirmPopup({
+      title: 'Delete review?',
+      message: 'Are you sure you want to delete this review?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    if (!ok) return;
     try {
       await adminDeleteReview({ bookId, reviewId });
       setReviews((prev) => prev.filter((r) => r.id !== reviewId));
@@ -297,7 +310,7 @@ export function Admin() {
 
       // Check for specific backend misconfiguration error
       if (error instanceof Error && error.message.includes('Missing path param')) {
-        alert(
+        handleApiError(
           'Backend Error: The Admin Delete API is missing the {reviewId} path parameter configuration in API Gateway. Please contact the backend developer.'
         );
         return;
@@ -325,19 +338,19 @@ export function Admin() {
 
         {/* Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="bg-linear-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
             <h3 className="text-lg font-semibold mb-2 opacity-90">Total Books</h3>
             <p className="text-5xl font-bold">
               <CountUp end={books.length} duration={1500} />
             </p>
           </div>
-          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="bg-linear-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
             <h3 className="text-lg font-semibold mb-2 opacity-90">Total Users</h3>
             <p className="text-5xl font-bold">
               <CountUp end={userCount} duration={1500} />
             </p>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="bg-linear-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
             <h3 className="text-lg font-semibold mb-2 opacity-90">Active Reading Lists</h3>
             <p className="text-5xl font-bold">
               <CountUp end={readingListCount} duration={1500} />

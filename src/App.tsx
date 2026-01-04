@@ -19,6 +19,8 @@ import { Terms } from './pages/Terms';
 import { NotFound } from './pages/NotFound';
 
 import { ScrollToTop } from './components/common/ScrollToTop';
+import { ToastViewport } from './components/common/ToastViewport';
+import { ConfirmViewport } from './components/common/ConfirmViewport';
 
 /**
  * Main App component with routing and layout
@@ -40,6 +42,8 @@ function App() {
       <AuthProvider>
         <ScrollToTop />
         <PrelineAutoInit />
+        <ToastViewport />
+        <ConfirmViewport />
         <div className="flex flex-col min-h-screen">
           <Header />
           <main className="flex-1">

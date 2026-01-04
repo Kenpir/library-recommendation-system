@@ -3,7 +3,7 @@ import { Button } from '@/components/common/Button';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { getRecommendations, getBooks } from '@/services/api';
 import { Recommendation } from '@/types';
-import { handleApiError } from '@/utils/errorHandling';
+import { handleApiError, showWarning } from '@/utils/errorHandling';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -33,7 +33,7 @@ export function Recommendations() {
       if (match) {
         navigate(`/books/${encodeURIComponent(match.id)}`);
       } else {
-        alert('Book not found in catalog — opening full catalog.');
+        showWarning('Book not found in catalog — opening full catalog.');
         navigate('/books');
       }
     } catch (error) {
@@ -52,7 +52,7 @@ export function Recommendations() {
 
   const handleGetRecommendations = async () => {
     if (!query.trim()) {
-      alert('Please enter a query');
+      showWarning('Please enter a query');
       return;
     }
 
