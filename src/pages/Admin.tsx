@@ -266,10 +266,24 @@ export function Admin() {
     }
 
     try {
-      const created = await createBook({
+      const payload = {
         ...newBook,
         rating: 0,
-      });
+      };
+
+      // Prevent DynamoDB "item size exceeded" errors by checking payload size client-side.
+      // (Cover images are currently stored inline as a data URL string.)
+      const approxBytes = new TextEncoder().encode(JSON.stringify(payload)).length;
+      if (approxBytes > 360 * 1024) {
+        showWarning(
+          `Book data is too large to save (approx ${Math.round(
+            approxBytes / 1024
+          )}KB). Please use a smaller cover image or shorten the description.`
+        );
+        return;
+      }
+
+      const created = await createBook(payload);
 
       closeAddBookOffcanvas();
 
@@ -303,6 +317,16 @@ export function Admin() {
         publishedYear: editBook.publishedYear,
         isbn: editBook.isbn,
       };
+
+      const approxBytes = new TextEncoder().encode(JSON.stringify(updatePayload)).length;
+      if (approxBytes > 360 * 1024) {
+        showWarning(
+          `Book data is too large to save (approx ${Math.round(
+            approxBytes / 1024
+          )}KB). Please use a smaller cover image or shorten the description.`
+        );
+        return;
+      }
 
       const updated = await updateBook(editBook.id, updatePayload);
 
@@ -757,6 +781,9 @@ export function Admin() {
               value={newBook.coverImage}
               onChange={(val) => setNewBook({ ...newBook, coverImage: val })}
               resetSignal={addCoverUploadReset}
+              maxSizeMB={5}
+              maxEncodedKB={300}
+              maxDimension={1000}
             />
 
             <Input
@@ -850,6 +877,9 @@ export function Admin() {
                   value={editBook.coverImage || ''}
                   resetSignal={editCoverUploadReset}
                   onChange={(nextValue) => setEditBook({ ...editBook, coverImage: nextValue })}
+                  maxSizeMB={5}
+                  maxEncodedKB={300}
+                  maxDimension={1000}
                 />
 
                 <Input

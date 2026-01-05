@@ -10,7 +10,20 @@ type CoverImageUploadProps = {
    * Useful for "Add Book" vs "Edit Book" flows when the offcanvas stays mounted.
    */
   resetSignal?: number | string;
+  /**
+   * Maximum raw file size allowed to be selected/dropped.
+   * Note: if you're storing the image inline (data URL), you likely also want `maxEncodedKB`.
+   */
   maxSizeMB?: number;
+  /**
+   * Maximum size (in KB) for the encoded image that will be stored (data URL).
+   * If the raw file is larger, we will attempt to compress/resize it to fit.
+   */
+  maxEncodedKB?: number;
+  /**
+   * Maximum width/height (pixels) for the stored image when we compress/resize.
+   */
+  maxDimension?: number;
   disabled?: boolean;
 };
 
@@ -44,6 +57,8 @@ export function CoverImageUpload({
   onChange,
   resetSignal,
   maxSizeMB = 2,
+  maxEncodedKB,
+  maxDimension = 900,
   disabled = false,
 }: CoverImageUploadProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -54,6 +69,12 @@ export function CoverImageUpload({
   const [isDragging, setIsDragging] = useState(false);
 
   const canInteract = !disabled && !isDestroyed;
+
+  const maxBytes = useMemo(() => Math.round(maxSizeMB * 1024 * 1024), [maxSizeMB]);
+  const maxEncodedBytes = useMemo(
+    () => (typeof maxEncodedKB === 'number' ? Math.round(maxEncodedKB * 1024) : undefined),
+    [maxEncodedKB]
+  );
 
   useEffect(() => {
     // Hard reset local UI state when parent tells us a new form session began.
@@ -69,10 +90,86 @@ export function CoverImageUpload({
     return value;
   }, [value]);
 
+  const dataUrlByteLength = (dataUrl: string): number => {
+    // Approximate bytes for the entire string (header + base64 payload). This is good enough for limits.
+    return new TextEncoder().encode(dataUrl).length;
+  };
+
+  const loadImageFromBlob = async (blob: Blob): Promise<HTMLImageElement> => {
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = url;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load image'));
+      });
+      return img;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const canvasToBlob = (canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob> =>
+    new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) reject(new Error('Failed to encode image'));
+          else resolve(blob);
+        },
+        type,
+        quality
+      );
+    });
+
+  const compressToFit = async (file: File, targetBytes: number): Promise<string> => {
+    const img = await loadImageFromBlob(file);
+    const type = 'image/jpeg';
+
+    let scale = 1;
+    const longest = Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height);
+    if (longest > maxDimension) {
+      scale = maxDimension / longest;
+    }
+
+    // Try a few passes: reduce quality first, then reduce dimensions if needed.
+    let quality = 0.85;
+    for (let pass = 0; pass < 10; pass++) {
+      const w = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+      const h = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas not supported');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const blob = await canvasToBlob(canvas, type, quality);
+      if (blob.size <= targetBytes) {
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(blob);
+        });
+        return dataUrl;
+      }
+
+      if (quality > 0.55) {
+        quality = Math.max(0.55, quality - 0.1);
+      } else {
+        scale *= 0.85;
+      }
+    }
+
+    throw new Error('Image is too large to compress');
+  };
+
   const readFileAsDataUrl = async (file: File) => {
-    const maxBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxBytes) {
-      setError(`File exceeds size limit. Please upload a file smaller than ${maxSizeMB}MB.`);
+      setError(`File exceeds size limit. Please upload a file smaller than ${formatBytes(maxBytes)}.`);
       return;
     }
     if (!file.type.startsWith('image/')) {
@@ -83,12 +180,28 @@ export function CoverImageUpload({
     setError(null);
     setLastFileMeta({ name: file.name, size: file.size });
 
-    const dataUrl: string = await new Promise((resolve, reject) => {
+    let dataUrl: string = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || ''));
       reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsDataURL(file);
     });
+
+    if (typeof maxEncodedBytes === 'number') {
+      const encodedBytes = dataUrlByteLength(dataUrl);
+      if (encodedBytes > maxEncodedBytes) {
+        try {
+          dataUrl = await compressToFit(file, maxEncodedBytes);
+        } catch {
+          setError(
+            `Image is too large to store. Please choose a smaller image or reduce resolution (limit: ${formatBytes(
+              maxEncodedBytes
+            )}).`
+          );
+          return;
+        }
+      }
+    }
 
     onChange(dataUrl);
   };
@@ -225,7 +338,10 @@ export function CoverImageUpload({
                 <span className="font-semibold text-primary-600">browse</span>
               </div>
               <div className="mt-1 text-xs text-slate-500">
-                PNG/JPG/WEBP/GIF up to {maxSizeMB}MB.
+                PNG/JPG/WEBP/GIF up to {formatBytes(maxBytes)}
+                {typeof maxEncodedBytes === 'number'
+                  ? ` (stored up to ${formatBytes(maxEncodedBytes)}).`
+                  : '.'}
               </div>
 
               {lastFileMeta ? (
