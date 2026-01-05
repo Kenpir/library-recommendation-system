@@ -42,28 +42,77 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
+type PaginatedResult<T> = { items: T[]; nextToken?: string };
+
+function parseJsonBodyIfNeeded(data: unknown): unknown {
+  if (isObject(data) && typeof data.body === 'string') {
+    try {
+      return JSON.parse(data.body);
+    } catch {
+      return data.body;
+    }
+  }
+  return data;
+}
+
+function parsePaginatedItems<T>(payload: unknown): PaginatedResult<T> | null {
+  if (!isObject(payload)) return null;
+  const itemsRaw = payload.items;
+  if (!Array.isArray(itemsRaw)) return null;
+  const nextTokenRaw = payload.nextToken;
+  return {
+    items: itemsRaw as T[],
+    ...(typeof nextTokenRaw === 'string' && nextTokenRaw.trim() ? { nextToken: nextTokenRaw } : {}),
+  };
+}
+
+async function getBooksPage(
+  options: { limit?: number; nextToken?: string } = {}
+): Promise<PaginatedResult<Book>> {
+  const params = new URLSearchParams();
+  if (options.limit) params.append('limit', options.limit.toString());
+  if (options.nextToken) params.append('nextToken', options.nextToken);
+
+  const url =
+    params.size > 0 ? `${API_BASE_URL}/books?${params.toString()}` : `${API_BASE_URL}/books`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Failed to fetch books: ${response.status} ${response.statusText}. ${errorText}`);
+  }
+
+  const data = await response.json();
+  const payload = parseJsonBodyIfNeeded(data);
+
+  // Back-compat: some implementations return a bare array of books
+  if (Array.isArray(payload)) {
+    return { items: payload as Book[] };
+  }
+
+  // Preferred: { items: [...], nextToken?: string }
+  const paginated = parsePaginatedItems<Book>(payload);
+  if (paginated) return paginated;
+
+  return { items: [] };
+}
+
 export async function getBooks(): Promise<Book[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/books`);
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(
-        `Failed to fetch books: ${response.status} ${response.statusText}. ${errorText}`
-      );
+    // DynamoDB Scan/Query returns max ~1MB per request.
+    // If the backend supports pagination via nextToken, fetch all pages.
+    const items: Book[] = [];
+    let nextToken: string | undefined = undefined;
+
+    // Safety guard to avoid infinite loops on a bad backend token.
+    for (let i = 0; i < 200; i++) {
+      const page = await getBooksPage({ limit: 200, nextToken });
+      items.push(...page.items);
+      if (!page.nextToken) break;
+      nextToken = page.nextToken;
     }
 
-    const data = await response.json();
-
-    if (Array.isArray(data)) {
-      return data;
-    }
-
-    if (typeof data?.body === 'string') {
-      const parsed = JSON.parse(data.body);
-      return Array.isArray(parsed) ? parsed : [];
-    }
-
-    return [];
+    return items;
   } catch (error) {
     // Handle network errors (Failed to fetch, CORS, etc.)
     if (error instanceof TypeError && error.message.includes('fetch')) {
