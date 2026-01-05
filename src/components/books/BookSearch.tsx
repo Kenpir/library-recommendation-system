@@ -13,7 +13,7 @@ interface BookSearchProps {
   onSearch: (query: string) => void;
   onFilterChange: (filters: FilterState) => void;
   genres: string[];
-  years: number[];
+  centuries: string[];
   filters: FilterState;
 }
 
@@ -24,8 +24,8 @@ export function BookSearch({
   onSearch,
   onFilterChange,
   genres = [],
-  years = [],
-  filters
+  centuries = [],
+  filters,
 }: BookSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -37,7 +37,7 @@ export function BookSearch({
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     onFilterChange({
       ...filters,
-      [key]: value
+      [key]: value,
     });
   };
 
@@ -99,8 +99,10 @@ export function BookSearch({
               className="input-modern"
             >
               <option value="">All Genres</option>
-              {genres.map(genre => (
-                <option key={genre} value={genre}>{genre}</option>
+              {genres.map((genre) => (
+                <option key={genre} value={genre}>
+                  {genre}
+                </option>
               ))}
             </select>
           </div>
@@ -121,15 +123,17 @@ export function BookSearch({
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Year</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Century</label>
             <select
               value={filters.year}
               onChange={(e) => handleFilterChange('year', e.target.value)}
               className="input-modern"
             >
-              <option value="">All Years</option>
-              {years.map(year => (
-                <option key={year} value={year.toString()}>{year}</option>
+              <option value="">All Centuries</option>
+              {centuries.map((century) => (
+                <option key={century} value={century}>
+                  {century}
+                </option>
               ))}
             </select>
           </div>

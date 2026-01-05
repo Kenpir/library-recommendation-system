@@ -6,6 +6,7 @@ import { getBooks, getReviews } from '@/services/api';
 import { Book } from '@/types';
 import { handleApiError } from '@/utils/errorHandling';
 import { averageRating } from '@/utils/formatters';
+import { getCenturyFromYear, Century } from '@/enums/years';
 
 /**
  * Helper function to sort books based on criteria
@@ -42,8 +43,14 @@ export function Books() {
   >({});
 
   // Derive unique values for filters
-  const uniqueGenres = useMemo(() => Array.from(new Set(books.map(b => b.genre))).sort(), [books]);
-  const uniqueYears = useMemo(() => Array.from(new Set(books.map(b => b.publishedYear))).sort((a, b) => b - a), [books]);
+  const uniqueGenres = useMemo(
+    () => Array.from(new Set(books.map((b) => b.genre))).sort(),
+    [books]
+  );
+  const uniqueCenturies = useMemo(() => {
+    // Return all values from the Century enum
+    return Object.values(Century);
+  }, []);
 
   // Derived filtered and sorted books
   const filteredBooks = useMemo(() => {
@@ -71,10 +78,9 @@ export function Books() {
       result = result.filter((book) => book.rating >= minRating);
     }
 
-    // Year
+    // Century (stored in filters.year)
     if (filters.year) {
-      const year = parseInt(filters.year);
-      result = result.filter((book) => book.publishedYear === year);
+      result = result.filter((book) => getCenturyFromYear(book.publishedYear) === filters.year);
     }
 
     return sortBooks(result, sortBy);
@@ -217,7 +223,7 @@ export function Books() {
             onSearch={handleSearch}
             onFilterChange={setFilters}
             genres={uniqueGenres}
-            years={uniqueYears}
+            centuries={uniqueCenturies}
             filters={filters}
           />
         </div>
@@ -297,17 +303,17 @@ export function Books() {
                     totalPages <= 7
                       ? Array.from({ length: totalPages }, (_, i) => i + 1)
                       : (() => {
-                        const pageSet = new Set<number>();
-                        pageSet.add(1);
-                        pageSet.add(totalPages);
-                        pageSet.add(currentPage);
-                        pageSet.add(currentPage - 1);
-                        pageSet.add(currentPage + 1);
+                          const pageSet = new Set<number>();
+                          pageSet.add(1);
+                          pageSet.add(totalPages);
+                          pageSet.add(currentPage);
+                          pageSet.add(currentPage - 1);
+                          pageSet.add(currentPage + 1);
 
-                        return Array.from(pageSet)
-                          .filter((p) => p >= 1 && p <= totalPages)
-                          .sort((a, b) => a - b);
-                      })();
+                          return Array.from(pageSet)
+                            .filter((p) => p >= 1 && p <= totalPages)
+                            .sort((a, b) => a - b);
+                        })();
 
                   const gapGroups = buildHiddenPageGroups(visiblePages);
 
