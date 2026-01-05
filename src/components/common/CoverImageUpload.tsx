@@ -25,6 +25,7 @@ type CoverImageUploadProps = {
    */
   maxDimension?: number;
   disabled?: boolean;
+  required?: boolean;
 };
 
 function formatBytes(bytes: number): string {
@@ -60,6 +61,7 @@ export function CoverImageUpload({
   maxEncodedKB,
   maxDimension = 900,
   disabled = false,
+  required = false,
 }: CoverImageUploadProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [inputKey, setInputKey] = useState(0);
@@ -169,7 +171,9 @@ export function CoverImageUpload({
 
   const readFileAsDataUrl = async (file: File) => {
     if (file.size > maxBytes) {
-      setError(`File exceeds size limit. Please upload a file smaller than ${formatBytes(maxBytes)}.`);
+      setError(
+        `File exceeds size limit. Please upload a file smaller than ${formatBytes(maxBytes)}.`
+      );
       return;
     }
     if (!file.type.startsWith('image/')) {
@@ -266,7 +270,9 @@ export function CoverImageUpload({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
 
       {isDestroyed ? (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -400,5 +406,3 @@ export function CoverImageUpload({
     </div>
   );
 }
-
-

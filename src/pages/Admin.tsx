@@ -244,7 +244,7 @@ export function Admin() {
   };
 
   const handleCreateBook = async () => {
-    if (!newBook.title || !newBook.author) {
+    if (!newBook.title || !newBook.author || !newBook.coverImage) {
       showWarning('Please fill in required fields');
       return;
     }
@@ -769,6 +769,7 @@ export function Admin() {
               maxSizeMB={5}
               maxEncodedKB={300}
               maxDimension={1000}
+              required
             />
 
             <Input
