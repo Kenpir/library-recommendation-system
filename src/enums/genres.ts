@@ -1,0 +1,14 @@
+export enum Genre {
+  Fiction = 'Fiction',
+  ScienceFiction = 'Science Fiction',
+  Mystery = 'Mystery',
+  Romance = 'Romance',
+  NonFiction = 'Non-Fiction',
+  Fantasy = 'Fantasy',
+  Biography = 'Biography',
+  History = 'History',
+  Thriller = 'Thriller',
+  YoungAdult = 'Young Adult',
+}
+
+export const GENRE_OPTIONS: string[] = Object.values(Genre);

@@ -1,4 +1,5 @@
 import { Book, User, ReadingList } from '@/types';
+import { Genre } from '@/enums/genres';
 
 /**
  * ============================================================================
@@ -71,7 +72,7 @@ export const mockBooks: Book[] = [
     id: '1',
     title: 'The Midnight Library',
     author: 'Matt Haig',
-    genre: 'Fiction',
+    genre: Genre.Fiction,
     description:
       'Between life and death there is a library, and within that library, the shelves go on forever. Every book provides a chance to try another life you could have lived.',
     coverImage: '/book-covers/midnight-library.jpg',
@@ -83,7 +84,7 @@ export const mockBooks: Book[] = [
     id: '2',
     title: 'Project Hail Mary',
     author: 'Andy Weir',
-    genre: 'Science Fiction',
+    genre: Genre.ScienceFiction,
     description:
       'A lone astronaut must save the earth from disaster in this incredible new science-based thriller from the author of The Martian.',
     coverImage: '/book-covers/project-hail-mary.jpg',
@@ -95,7 +96,7 @@ export const mockBooks: Book[] = [
     id: '3',
     title: 'The Silent Patient',
     author: 'Alex Michaelides',
-    genre: 'Mystery',
+    genre: Genre.Mystery,
     description:
       "Alicia Berenson's life is seemingly perfect. A famous painter married to an in-demand fashion photographer, she lives in a grand house. One evening her husband returns home late, and Alicia shoots him five times in the face, and then never speaks another word.",
     coverImage: '/book-covers/silent-patient.jpg',
@@ -107,7 +108,7 @@ export const mockBooks: Book[] = [
     id: '4',
     title: 'People We Meet on Vacation',
     author: 'Emily Henry',
-    genre: 'Romance',
+    genre: Genre.Romance,
     description: 'Two best friends. Ten summer trips. One last chance to fall in love.',
     coverImage: '/book-covers/people-we-meet.jpg',
     rating: 4.2,
@@ -118,7 +119,7 @@ export const mockBooks: Book[] = [
     id: '5',
     title: 'Atomic Habits',
     author: 'James Clear',
-    genre: 'Non-Fiction',
+    genre: Genre.NonFiction,
     description:
       'An Easy & Proven Way to Build Good Habits & Break Bad Ones. Tiny changes, remarkable results.',
     coverImage: '/book-covers/atomic-habits.jpg',
@@ -130,7 +131,7 @@ export const mockBooks: Book[] = [
     id: '6',
     title: 'The Seven Husbands of Evelyn Hugo',
     author: 'Taylor Jenkins Reid',
-    genre: 'Fiction',
+    genre: Genre.Fiction,
     description:
       'Aging and reclusive Hollywood movie icon Evelyn Hugo is finally ready to tell the truth about her glamorous and scandalous life.',
     coverImage: '/book-covers/evelyn-hugo.jpg',
@@ -142,7 +143,7 @@ export const mockBooks: Book[] = [
     id: '7',
     title: 'Dune',
     author: 'Frank Herbert',
-    genre: 'Science Fiction',
+    genre: Genre.ScienceFiction,
     description:
       'Set on the desert planet Arrakis, Dune is the story of the boy Paul Atreides, heir to a noble family tasked with ruling an inhospitable world.',
     coverImage: '/book-covers/dune.jpg',
@@ -154,7 +155,7 @@ export const mockBooks: Book[] = [
     id: '8',
     title: 'The Thursday Murder Club',
     author: 'Richard Osman',
-    genre: 'Mystery',
+    genre: Genre.Mystery,
     description:
       'Four unlikely friends meet weekly to investigate unsolved killings. But when a local developer is found dead, these unorthodox detectives find themselves in the middle of their first live case.',
     coverImage: '/book-covers/thursday-murder-club.jpg',
@@ -166,7 +167,7 @@ export const mockBooks: Book[] = [
     id: '9',
     title: 'Educated',
     author: 'Tara Westover',
-    genre: 'Non-Fiction',
+    genre: Genre.NonFiction,
     description:
       'A memoir about a young girl who, kept out of school, leaves her survivalist family and goes on to earn a PhD from Cambridge University.',
     coverImage: '/book-covers/educated.jpg',
@@ -178,7 +179,7 @@ export const mockBooks: Book[] = [
     id: '10',
     title: 'The Song of Achilles',
     author: 'Madeline Miller',
-    genre: 'Fiction',
+    genre: Genre.Fiction,
     description:
       "A tale of gods, kings, immortal fame and the human heart, The Song of Achilles is a dazzling literary feat that brilliantly reimagines Homer's enduring masterwork, The Iliad.",
     coverImage: '/book-covers/song-of-achilles.jpg',

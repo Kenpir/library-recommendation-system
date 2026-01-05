@@ -4,6 +4,8 @@ import { Input } from '@/components/common/Input';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { CoverImageUpload } from '@/components/common/CoverImageUpload';
 import { CountUp } from '@/components/common/CountUp';
+import { AdvancedSelect } from '@/components/common/AdvancedSelect';
+import { GENRE_OPTIONS } from '@/enums/genres';
 import {
   getBooks,
   createBook,
@@ -773,11 +775,11 @@ export function Admin() {
               required
             />
 
-            <Input
+            <AdvancedSelect
               label="Genre"
-              type="text"
               value={newBook.genre}
-              onChange={(e) => setNewBook({ ...newBook, genre: e.target.value })}
+              options={GENRE_OPTIONS}
+              onChange={(val) => setNewBook({ ...newBook, genre: val })}
               required
             />
 
@@ -866,11 +868,11 @@ export function Admin() {
                   required
                 />
 
-                <Input
+                <AdvancedSelect
                   label="Genre"
-                  type="text"
                   value={editBook.genre}
-                  onChange={(e) => setEditBook({ ...editBook, genre: e.target.value })}
+                  options={GENRE_OPTIONS}
+                  onChange={(val) => setEditBook({ ...editBook, genre: val })}
                   required
                 />
 
