@@ -202,7 +202,6 @@ export function Books() {
             </p>
           </div>
 
-          {/* TODO: Implement sort logic */}
           <div className="flex items-center gap-3">
             <label className="text-sm text-slate-700 font-semibold">Sort by:</label>
             <select

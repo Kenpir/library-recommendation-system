@@ -221,35 +221,6 @@ export async function deleteBook(id: string): Promise<void> {
     throw error;
   }
 }
-
-/**
- * Get AI-powered book recommendations using Amazon Bedrock
- *
- * TODO: Replace with real API call in Week 4, Day 1-2
- *
- * Implementation steps:
- * 1. Enable Bedrock model access in AWS Console (Claude 3 Haiku recommended)
- * 2. Deploy Lambda function: library-get-recommendations (see IMPLEMENTATION_GUIDE.md)
- * 3. Create API Gateway endpoint: POST /recommendations
- * 4. Add Cognito authorizer
- * 5. Update function signature to accept query parameter:
- *    export async function getRecommendations(query: string): Promise<Recommendation[]>
- * 6. Replace mock code below with:
- *
- * const headers = await getAuthHeaders();
- * const response = await fetch(`${API_BASE_URL}/recommendations`, {
- *   method: 'POST',
- *   headers,
- *   body: JSON.stringify({ query })
- * });
- * if (!response.ok) throw new Error('Failed to get recommendations');
- * const data = await response.json();
- * return data.recommendations;
- *
- * Expected response: Array of recommendations with title, author, reason, confidence
- *
- * Documentation: https://docs.aws.amazon.com/bedrock/latest/userguide/
- */
 export async function getRecommendations(query: string): Promise<Recommendation[]> {
   try {
     const headers = await getAuthHeaders();
@@ -408,30 +379,6 @@ export async function getReadingList(id: string): Promise<ReadingList | null> {
   }
 }
 
-/**
- * Create a new reading list
- *
- * TODO: Replace with real API call in Week 2, Day 5-7
- *
- * Implementation steps:
- * 1. Deploy Lambda function: library-create-reading-list
- * 2. Lambda should generate UUID for id and timestamps
- * 3. Lambda should get userId from Cognito token
- * 4. Create API Gateway endpoint: POST /reading-lists
- * 5. Add Cognito authorizer (Week 3)
- * 6. Replace mock code below with:
- *
- * const headers = await getAuthHeaders();
- * const response = await fetch(`${API_BASE_URL}/reading-lists`, {
- *   method: 'POST',
- *   headers,
- *   body: JSON.stringify(list)
- * });
- * if (!response.ok) throw new Error('Failed to create reading list');
- * return response.json();
- *
- * Expected response: Complete ReadingList object with generated id and timestamps
- */
 export async function createReadingList(
   list: Omit<ReadingList, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
 ): Promise<ReadingList> {
@@ -460,11 +407,6 @@ export async function createReadingList(
     throw error;
   }
 }
-
-/**
- * Update a reading list
- * TODO: Replace with PUT /reading-lists/:id API call
- */
 export async function updateReadingList(
   id: string,
   list: Partial<Pick<ReadingList, 'name' | 'description' | 'bookIds' | 'completedBookIds'>>
@@ -524,10 +466,6 @@ export async function updateReadingList(
   }
 }
 
-/**
- * Delete a reading list
- * TODO: Replace with DELETE /reading-lists/:id API call
- */
 export async function deleteReadingList(id: string): Promise<void> {
   try {
     const headers = await getAuthHeaders();
@@ -553,12 +491,6 @@ export async function deleteReadingList(id: string): Promise<void> {
   }
 }
 
-/**
- * Get reviews for a book
- */
-/**
- * Get all reviews (admin only, scans entire table)
- */
 export async function getAllReviews(
   options: { limit?: number; nextToken?: string } = {}
 ): Promise<{ items: Review[]; nextToken?: string }> {
@@ -639,9 +571,6 @@ export async function getAllReviews(
   }
 }
 
-/**
- * Get reviews for a book
- */
 export async function getReviews(bookId: string): Promise<Review[]> {
   try {
     // ... existing getReviews logic ...
@@ -716,9 +645,6 @@ export async function getReviews(bookId: string): Promise<Review[]> {
   }
 }
 
-/**
- * Create a new review
- */
 export async function createReview(input: {
   bookId: string;
   rating: number;
@@ -793,9 +719,6 @@ export async function createReview(input: {
   }
 }
 
-/**
- * Delete a review (only the owner can delete)
- */
 export async function deleteReview(input: { bookId: string; reviewId: string }): Promise<void> {
   try {
     const headers = await getAuthHeaders();
