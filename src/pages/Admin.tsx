@@ -92,6 +92,51 @@ export function Admin() {
     }
   }, [isLoading]);
 
+  type HSOverlayCollectionItem = {
+    element?: {
+      close?: (force?: boolean) => Promise<unknown> | void;
+    };
+  };
+
+  const forceCloseOverlay = useCallback((selector: string) => {
+    // Prefer instance close(true) so we don't get stuck waiting for transitionend
+    // (which can happen if the overlay has transition classes but no animating properties).
+    try {
+      window.HSStaticMethods?.autoInit();
+      const overlayClass = window.HSOverlay as unknown as {
+        getInstance?: (target: string, isInstance?: boolean) => HSOverlayCollectionItem | null;
+      };
+      const inst = overlayClass?.getInstance?.(selector, true);
+      if (inst?.element?.close) {
+        void inst.element.close(true);
+        return;
+      }
+    } catch {
+      // ignore and fall through to other strategies
+    }
+
+    // Fallback: static close
+    window.HSOverlay?.close(selector);
+
+    // Final fallback: hard-hide element
+    const el =
+      selector.startsWith('#')
+        ? document.getElementById(selector.slice(1))
+        : (document.querySelector(selector) as HTMLElement | null);
+    el?.classList.add('hidden');
+    el?.classList.remove('open', 'opened');
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      forceCloseOverlay('#add-book-offcanvas');
+      forceCloseOverlay('#edit-book-offcanvas');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [forceCloseOverlay]);
+
   const filterBooksByTitle = (allBooks: Book[], query: string) => {
     const q = query.trim().toLowerCase();
     if (!q) return allBooks;
@@ -182,38 +227,34 @@ export function Admin() {
     });
     setAddCoverUploadReset((prev) => prev + 1);
 
-    setTimeout(() => {
-      const el = document.getElementById('add-book-offcanvas');
-      if (el && window.HSOverlay) {
-        window.HSOverlay.open(el);
-      }
-    }, 10);
+    // Re-init and open via selector (more reliable than passing HTMLElement in this app)
+    window.HSStaticMethods?.autoInit();
+    queueMicrotask(() => {
+      window.HSOverlay?.open('#add-book-offcanvas');
+    });
   };
 
   const closeAddBookOffcanvas = () => {
-    const el = document.getElementById('add-book-offcanvas');
-    if (el && window.HSOverlay) {
-      window.HSOverlay.close(el);
-    }
+    forceCloseOverlay('#add-book-offcanvas');
   };
 
   const openEditBookOffcanvas = (book: Book) => {
     setEditBook(book);
     setEditCoverUploadReset((prev) => prev + 1);
 
-    setTimeout(() => {
-      const el = document.getElementById('edit-book-offcanvas');
-      if (el && window.HSOverlay) {
-        window.HSOverlay.open(el);
-      }
-    }, 10);
+    window.HSStaticMethods?.autoInit();
+    queueMicrotask(() => {
+      window.HSOverlay?.open('#edit-book-offcanvas');
+    });
   };
 
   const closeEditBookOffcanvas = () => {
-    const el = document.getElementById('edit-book-offcanvas');
-    if (el && window.HSOverlay) {
-      window.HSOverlay.close(el);
-    }
+    forceCloseOverlay('#edit-book-offcanvas');
+    // Clear edit state after the close animation finishes so the drawer
+    // doesn't re-render itself visible while Preline is toggling classes.
+    setTimeout(() => {
+      setEditBook(null);
+    }, 350);
   };
 
   const handleCreateBook = async () => {
@@ -686,20 +727,24 @@ export function Admin() {
         {/* Add Book Offcanvas */}
         <div
           id="add-book-offcanvas"
-          className="hs-overlay hidden fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200"
+          className="hs-overlay [--body-scroll:true] hidden fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200"
           style={{ backgroundColor: 'white', zIndex: 80 }}
           tabIndex={-1}
+          aria-labelledby="add-book-offcanvas-label"
           data-hs-overlay-options='{
             "bodyScroll": true,
             "backdrop": true
           }'
         >
           <div className="flex justify-between items-center py-3 px-4 border-b border-gray-200">
-            <h3 className="font-bold text-gray-800">Add New Book</h3>
+            <h3 id="add-book-offcanvas-label" className="font-bold text-gray-800">
+              Add New Book
+            </h3>
             <button
               type="button"
               className="px-3 py-1 text-sm font-semibold text-gray-800 hover:bg-gray-100 rounded-lg transition-all active:scale-95"
               onClick={closeAddBookOffcanvas}
+              data-hs-overlay="#add-book-offcanvas"
             >
               Close
             </button>
@@ -773,20 +818,24 @@ export function Admin() {
         {/* Edit Book Offcanvas */}
         <div
           id="edit-book-offcanvas"
-          className={`hs-overlay ${editBook ? '' : 'hidden'} fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200`}
+          className="hs-overlay [--body-scroll:true] hidden fixed top-0 end-0 transition-all duration-200 transform h-full max-w-md w-full z-80 bg-white dark:bg-white border-s border-gray-200"
           style={{ backgroundColor: 'white', zIndex: 80 }}
           tabIndex={-1}
+          aria-labelledby="edit-book-offcanvas-label"
           data-hs-overlay-options='{
             "bodyScroll": true,
             "backdrop": true
           }'
         >
           <div className="flex justify-between items-center py-3 px-4 border-b border-gray-200">
-            <h3 className="font-bold text-gray-800">Edit Book</h3>
+            <h3 id="edit-book-offcanvas-label" className="font-bold text-gray-800">
+              Edit Book
+            </h3>
             <button
               type="button"
               className="px-3 py-1 text-sm font-semibold text-gray-800 hover:bg-gray-100 rounded-lg transition-all active:scale-95"
               onClick={closeEditBookOffcanvas}
+              data-hs-overlay="#edit-book-offcanvas"
             >
               Close
             </button>
