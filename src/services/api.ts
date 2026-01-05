@@ -1,4 +1,4 @@
-import { Book, ReadingList, Review, Recommendation } from '@/types';
+import { Book, ReadingList, Review, Recommendation, User } from '@/types';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -904,8 +904,7 @@ export async function getAllReadingLists(): Promise<ReadingList[]> {
 /**
  * Get total users count (admin only)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getUsers(): Promise<any[]> {
+export async function getUsers(): Promise<User[]> {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/admin/users`, { headers });
@@ -915,8 +914,93 @@ export async function getUsers(): Promise<any[]> {
       return [];
     }
 
-    const data = await response.json();
-    return Array.isArray(data) ? data : JSON.parse(data.body || '[]');
+    const isUserRole = (value: unknown): value is User['role'] =>
+      value === 'user' || value === 'admin';
+
+    const toIsoStringOrEmpty = (value: unknown): string => {
+      if (typeof value === 'string') return value;
+      if (value instanceof Date) return value.toISOString();
+      return '';
+    };
+
+    const extractCognitoAttributes = (attrsRaw: unknown): Record<string, string> => {
+      if (!Array.isArray(attrsRaw)) return {};
+      const out: Record<string, string> = {};
+      for (const attr of attrsRaw) {
+        if (!isObject(attr)) continue;
+        const name = attr.Name;
+        const value = attr.Value;
+        if (typeof name === 'string' && typeof value === 'string') {
+          out[name] = value;
+        }
+      }
+      return out;
+    };
+
+    const toUser = (raw: unknown): User | null => {
+      if (!isObject(raw)) return null;
+
+      // Native app shape
+      const idRaw = raw.id;
+      const emailRaw = raw.email;
+      const nameRaw = raw.name;
+      const roleRaw = raw.role;
+      const createdAtRaw = raw.createdAt;
+
+      // Cognito-ish shape
+      const usernameRaw = raw.Username ?? raw.username;
+      const attrs = extractCognitoAttributes(raw.Attributes);
+
+      const id = typeof idRaw === 'string' ? idRaw : typeof usernameRaw === 'string' ? usernameRaw : '';
+      if (!id) return null;
+
+      const email =
+        typeof emailRaw === 'string'
+          ? emailRaw
+          : typeof attrs.email === 'string'
+            ? attrs.email
+            : '';
+
+      const name =
+        typeof nameRaw === 'string'
+          ? nameRaw
+          : typeof attrs.name === 'string'
+            ? attrs.name
+            : [attrs.given_name, attrs.family_name].filter(Boolean).join(' ') ||
+              (typeof usernameRaw === 'string' ? usernameRaw : '');
+
+      const roleAttr = attrs['custom:role'] ?? attrs.role;
+      const role: User['role'] = isUserRole(roleRaw)
+        ? roleRaw
+        : isUserRole(roleAttr)
+          ? roleAttr
+          : 'user';
+
+      const createdAt =
+        typeof createdAtRaw === 'string'
+          ? createdAtRaw
+          : toIsoStringOrEmpty(raw.UserCreateDate ?? raw.CreatedAt ?? raw.createdAt);
+
+      return {
+        id,
+        email,
+        name,
+        role,
+        createdAt,
+      };
+    };
+
+    const data: unknown = await response.json();
+    const payload = parseJsonBodyIfNeeded(data);
+
+    let usersRaw: unknown = payload;
+    if (isObject(payload)) {
+      const candidate = payload.items ?? payload.users ?? payload.Items ?? payload.Users;
+      if (candidate !== undefined) usersRaw = candidate;
+    }
+
+    if (!Array.isArray(usersRaw)) return [];
+    return usersRaw.map(toUser).filter((u): u is User => u !== null);
   } catch (error) {
     console.error('Failed to get users:', error);
     return [];
