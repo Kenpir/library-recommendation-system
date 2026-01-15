@@ -74,11 +74,8 @@ Fill this in before submitting:
 | Name | Responsibilities / Key Contributions |
 | --- | --- |
 | Kaan Erçelik | 15 commits. Work across `src/pages`, `src/components`, `src/services`, tests (`src/tests`), assets (`public/book-covers`). |
-
 | Sertaç Bekir Erden| ~34 commits (combined). Major work across `src/pages`, `src/components`, `src/services`, `src/contexts`, `src/utils`, app wiring (`src/App.tsx`, `src/main.tsx`). |
-
 | Yiğitcan Özdemir | ~8 commits (combined). Focus on `src/pages`, plus updates in `src/components`, `src/services`, `src/enums`, and `src/App.tsx`. |
-
 | Sezer Can Akgüç | ~5 commits (combined). Updates in `src/pages`, `src/components`, `src/services`, styling (`src/index.css`), and environment/example config. |
 
 ---AWS Developments and Configurations---
@@ -86,11 +83,8 @@ Fill this in before submitting:
 | Name | Responsibilities / Key Contributions |
 | --- | --- |
 | Kaan Erçelik | IAM User and AWS Account Configurations. -- Books, Reading Lists, Admin Page's Lambda functions and API Gateway Configurations. --  DynamoDB Books and Reading List tables creation. -- Cognito User Pool creation and configuration.|
-
 | Sertaç Bekir Erden | DynamoDB data insertion. -- Reviews and Recommendation Lambda and API Gateway Configurations. -- DynamoDB Reviews Table creation. -- S3 Bucket, CodePipeline, CodeBuild, AWS Amplify configurations and Deploying frontend CloudFront -- Amazon Nova Micro AI Integration on Amazon Bedrock |
-
 | Yiğitcan Özdemir |   |
-
 | Sezer Can Akgüç |  |
 
 ## 🚀 Features
